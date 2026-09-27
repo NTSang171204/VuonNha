@@ -1,0 +1,21 @@
+{
+  "name": "farm-ecommerce-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "dev:api": "pnpm --filter @farm/api start:dev",
+    "dev:storefront": "pnpm --filter @farm/storefront dev",
+    "dev:admin": "pnpm --filter @farm/admin dev",
+    "build": "pnpm --filter \"./packages/*\" build && pnpm --filter \"./apps/*\" build",
+    "db:generate": "pnpm --filter @farm/database db:generate",
+    "db:migrate": "pnpm --filter @farm/database db:migrate",
+    "db:push": "pnpm --filter @farm/database db:push",
+    "db:seed": "pnpm --filter @farm/database db:seed",
+    "db:studio": "pnpm --filter @farm/database db:studio",
+    "lint": "pnpm --recursive lint"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}
