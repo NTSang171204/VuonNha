@@ -13,7 +13,7 @@ import { ProductsService } from './products.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { Role, CreateProductDto, UpdateProductDto } from '@farm/types';
+import { Role, CreateProductDto, UpdateProductDto, PriceRange } from '@farm/types';
 
 @Controller('products')
 export class ProductsController {
@@ -26,8 +26,18 @@ export class ProductsController {
     @Query('categoryId') categoryId?: string,
     @Query('search') search?: string,
     @Query('status') status?: string,
+    @Query('priceRange') priceRange?: PriceRange,
+    @Query('inStock') inStock?: string,
   ) {
-    return this.productsService.findAll({ page, limit, categoryId, search, status });
+    return this.productsService.findAll({
+      page,
+      limit,
+      categoryId,
+      search,
+      status,
+      priceRange,
+      inStock: inStock === 'true',
+    });
   }
 
   @Get(':id')

@@ -25,6 +25,13 @@ enum ProductStatus {
   INACTIVE
 }
 
+enum Unit {
+  KG
+  BUNDLE
+  BOX
+  FRUIT
+}
+
 model User {
   id          String   @id @default(cuid())
   name        String
@@ -52,8 +59,8 @@ model Product {
   name        String
   imageUrl    String?
   description String?
-  price       Float
-  unit        String
+  price       Int           @default(0)
+  unit        Unit          @default(KG)
   stock       Int           @default(0)
   status      ProductStatus @default(ACTIVE)
   createdAt   DateTime      @default(now())

@@ -17,6 +17,19 @@ export enum Role {
   CUSTOMER = 'CUSTOMER',
 }
 
+export enum Unit {
+  KG = 'KG',
+  BUNDLE = 'BUNDLE',
+  BOX = 'BOX',
+  FRUIT = 'FRUIT',
+}
+
+export enum PriceRange {
+  UNDER_50K = 'UNDER_50K',
+  RANGE_50K_100K = 'RANGE_50K_100K',
+  OVER_100K = 'OVER_100K',
+}
+
 // Order state machine transitions
 export const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
@@ -72,7 +85,7 @@ export interface CreateProductDto {
   imageUrl?: string;
   description?: string;
   price: number;
-  unit: string;
+  unit: Unit;
   stock: number;
 }
 

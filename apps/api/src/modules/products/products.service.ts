@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateProductDto, UpdateProductDto, ProductStatus, PaginatedResponse } from '@farm/types';
+import { CreateProductDto, UpdateProductDto, ProductStatus, PaginatedResponse, PriceRange } from '@farm/types';
 
 @Injectable()
 export class ProductsService {
@@ -12,14 +12,31 @@ export class ProductsService {
     categoryId?: string;
     search?: string;
     status?: string;
-  }): Promise<PaginatedResponse> {
-    const { page, limit, categoryId, search, status } = params;
+    priceRange?: PriceRange;
+    inStock?: boolean;
+  }): Promise<PaginatedResponse<any>> {
+    const { page, limit, categoryId, search, status, priceRange, inStock } = params;
     const skip = (page - 1) * limit;
 
     const where: any = {};
     if (categoryId) where.categoryId = categoryId;
     if (search) where.name = { contains: search, mode: 'insensitive' };
     if (status) where.status = status;
+    if (inStock) where.stock = { gt: 0 };
+
+    if (priceRange) {
+      switch (priceRange) {
+        case PriceRange.UNDER_50K:
+          where.price = { lt: 50000 };
+          break;
+        case PriceRange.RANGE_50K_100K:
+          where.price = { gte: 50000, lte: 100000 };
+          break;
+        case PriceRange.OVER_100K:
+          where.price = { gt: 100000 };
+          break;
+      }
+    }
 
     const [items, total] = await Promise.all([
       this.prisma.product.findMany({

@@ -22,7 +22,7 @@ export class OrdersService {
     limit: number;
     status?: string;
     search?: string;
-  }): Promise<PaginatedResponse> {
+  }): Promise<PaginatedResponse<any>> {
     const { page, limit, status, search } = params;
     const skip = (page - 1) * limit;
 
@@ -76,7 +76,13 @@ export class OrdersService {
   async create(dto: CreateOrderDto) {
     // Validate stock and calculate total
     let totalAmount = 0;
-    const orderItems = [];
+    const orderItems: Array<{
+      productId: string;
+      productName: string;
+      unitPrice: number;
+      quantity: number;
+      subtotal: number;
+    }> = [];
 
     for (const item of dto.items) {
       const product = await this.prisma.product.findUnique({
