@@ -16,9 +16,26 @@ interface Product {
   category?: { name: string };
 }
 
+const UNIT_LABELS: Record<string, string> = {
+  KG: 'kg',
+  FRUIT: 'trái',
+  BOX: 'hộp',
+  BUNDLE: 'bó',
+};
+
+const HARDCODED_ORIGIN = 'Cái Bè, Đồng Tháp';
+const HARDCODED_HARVEST = 'Thu hoạch ngày 25/09';
+
 export function ProductDetail({ product }: { product: Product }) {
   const addItem = useCartStore((s) => s.addItem);
   const [quantity, setQuantity] = useState(1);
+  const [weight, setWeight] = useState(1); // kg
+
+  const unitLabel = UNIT_LABELS[product.unit] || product.unit;
+  const isWeightBased = product.unit === 'KG';
+
+  const displayQuantity = isWeightBased ? weight : quantity;
+  const subtotal = product.price * displayQuantity;
 
   const handleAddToCart = () => {
     addItem({
@@ -27,12 +44,18 @@ export function ProductDetail({ product }: { product: Product }) {
       price: product.price,
       unit: product.unit,
       imageUrl: product.imageUrl,
-      quantity,
+      quantity: displayQuantity,
     });
+  };
+
+  const handleBuyNow = () => {
+    handleAddToCart();
+    // TODO: Navigate to checkout
   };
 
   return (
     <div className="grid gap-8 md:grid-cols-2">
+      {/* Product Image */}
       <div className="relative aspect-square overflow-hidden rounded-2xl bg-gray-100">
         {product.imageUrl ? (
           <Image
@@ -40,6 +63,7 @@ export function ProductDetail({ product }: { product: Product }) {
             alt={product.name}
             fill
             className="object-cover"
+            priority
           />
         ) : (
           <div className="flex h-full items-center justify-center text-gray-400">
@@ -48,50 +72,150 @@ export function ProductDetail({ product }: { product: Product }) {
         )}
       </div>
 
-      <div>
+      {/* Product Info & Call-to-Action */}
+      <div className="flex flex-col">
         {product.category && (
-          <span className="mb-2 inline-block rounded-full bg-green-100 px-3 py-1 text-sm text-green-700">
+          <span className="mb-2 text-sm font-medium uppercase tracking-wide text-muted">
             {product.category.name}
           </span>
         )}
-        <h1 className="mb-4 text-3xl font-bold text-gray-800">{product.name}</h1>
-        <p className="mb-6 text-3xl font-bold text-green-600">
-          {product.price.toLocaleString('vi-VN')}đ / {product.unit}
-        </p>
-        {product.description && (
-          <p className="mb-6 text-gray-600">{product.description}</p>
-        )}
 
-        <div className="mb-6 flex items-center gap-4">
-          <span className="text-gray-600">Số lượng:</span>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setQuantity(Math.max(1, quantity - 1))}
-              className="rounded-lg border p-2 hover:bg-gray-100"
-            >
-              <Minus className="h-4 w-4" />
-            </button>
-            <span className="w-12 text-center text-lg font-semibold">{quantity}</span>
-            <button
-              onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
-              className="rounded-lg border p-2 hover:bg-gray-100"
-            >
-              <Plus className="h-4 w-4" />
-            </button>
-          </div>
-          <span className="text-sm text-gray-500">
-            (Còn {product.stock} {product.unit})
+        <h1 className="mb-4 text-3xl font-bold text-ink">{product.name}</h1>
+
+        <div className="mb-6 flex items-baseline gap-3">
+          <span className="text-3xl font-bold text-primary">
+            {product.price.toLocaleString('vi-VN')}₫
           </span>
+          <span className="text-lg text-muted">/ {unitLabel}</span>
         </div>
 
-        <button
-          onClick={handleAddToCart}
-          disabled={product.stock === 0}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-4 text-lg font-semibold text-white transition-colors hover:bg-green-700 disabled:bg-gray-300"
-        >
-          <ShoppingCart className="h-5 w-5" />
-          {product.stock === 0 ? 'Hết hàng' : 'Thêm vào giỏ hàng'}
-        </button>
+        <div className="mb-6 space-y-2 border-b border-line pb-6 text-sm">
+          <div className="flex justify-between">
+            <span className="text-muted">Nơi trồng</span>
+            <span className="text-ink">{HARDCODED_ORIGIN}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted">Thu hoạch</span>
+            <span className="text-ink">{HARDCODED_HARVEST}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted">Đơn vị bán</span>
+            <span className="text-ink">{unitLabel}</span>
+          </div>
+        </div>
+
+        {/* Quantity / Weight Selector */}
+        <div className="mb-6">
+          <span className="mb-3 block text-sm font-medium text-ink">
+            {isWeightBased ? 'Khối lượng' : 'Số lượng'}
+          </span>
+
+          {isWeightBased ? (
+            <div className="flex items-center gap-4">
+              <div className="flex items-center border border-line">
+                <button
+                  onClick={() => setWeight((w) => Math.max(0.5, w - 0.5))}
+                  className="grid h-11 w-11 place-items-center border-0 bg-transparent hover:bg-gray-100"
+                  aria-label="Giảm khối lượng"
+                >
+                  <Minus className="h-4 w-4" />
+                </button>
+                <span className="w-16 text-center text-lg font-semibold">
+                  {weight} kg
+                </span>
+                <button
+                  onClick={() => setWeight((w) => w + 0.5)}
+                  className="grid h-11 w-11 place-items-center border-0 bg-transparent hover:bg-gray-100"
+                  aria-label="Tăng khối lượng"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="flex gap-2">
+                {[0.5, 1, 2, 3].map((w) => (
+                  <button
+                    key={w}
+                    onClick={() => setWeight(w)}
+                    className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                      weight === w
+                        ? 'bg-primary text-white'
+                        : 'border border-line text-ink hover:bg-gray-50'
+                    }`}
+                  >
+                    {w} kg
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-4">
+              <div className="flex items-center border border-line">
+                <button
+                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                  className="grid h-11 w-11 place-items-center border-0 bg-transparent hover:bg-gray-100"
+                  aria-label="Giảm số lượng"
+                >
+                  <Minus className="h-4 w-4" />
+                </button>
+                <span className="w-12 text-center text-lg font-semibold">
+                  {quantity}
+                </span>
+                <button
+                  onClick={() => setQuantity((q) => Math.min(product.stock, q + 1))}
+                  className="grid h-11 w-11 place-items-center border-0 bg-transparent hover:bg-gray-100"
+                  aria-label="Tăng số lượng"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
+              <span className="text-sm text-muted">
+                (Còn {product.stock} {unitLabel})
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Subtotal */}
+        <div className="mb-6 rounded-xl bg-surface p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted">Tạm tính</span>
+            <span className="text-xl font-bold text-ink">
+              {subtotal.toLocaleString('vi-VN')}₫
+            </span>
+          </div>
+          <p className="mt-2 text-xs text-muted">
+            Giá tạm tính. Số tiền cuối cùng sẽ được điều chỉnh theo cân thực tế, chênh lệch tối đa ±10%.
+          </p>
+        </div>
+
+        {/* CTA Buttons */}
+        <div className="mb-6 flex flex-col gap-3">
+          <button
+            onClick={handleAddToCart}
+            disabled={product.stock === 0}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-primary py-4 text-lg font-semibold text-primary transition-colors hover:bg-primary hover:text-white disabled:border-gray-300 disabled:text-gray-300 disabled:hover:bg-transparent"
+          >
+            <ShoppingCart className="h-5 w-5" />
+            {product.stock === 0 ? 'Hết hàng' : 'Thêm vào giỏ'}
+          </button>
+          <button
+            onClick={handleBuyNow}
+            disabled={product.stock === 0}
+            className="w-full rounded-xl bg-primary py-4 text-lg font-semibold text-white transition-colors hover:bg-primary/90 disabled:bg-gray-300"
+          >
+            Mua ngay
+          </button>
+        </div>
+
+        {/* Description */}
+        {product.description && (
+          <div className="border-t border-line pt-6">
+            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
+              Mô tả sản phẩm
+            </h3>
+            <p className="text-gray-600">{product.description}</p>
+          </div>
+        )}
       </div>
     </div>
   );
