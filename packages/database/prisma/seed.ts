@@ -2,6 +2,22 @@ import { PrismaClient, Role, ProductStatus, Unit } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+/**
+ * Chuyển đổi tên tiếng Việt có dấu thành slug không dấu
+ * VD: "Rau Củ" → "rau-cu", "Đặc Sản Vùng Miền" → "dac-san-vung-mien"
+ */
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Loại bỏ dấu tiếng Việt
+    .replace(/đ/g, 'd') // Chuyển đ → d
+    .replace(/[^a-z0-9\s-]/g, '') // Loại bỏ ký tự đặc biệt
+    .replace(/\s+/g, '-') // Thay khoảng trắng bằng dấu gạch ngang
+    .replace(/-+/g, '-') // Gộp nhiều dấu gạch ngang liên tiếp
+    .replace(/^-|-$/g, ''); // Loại bỏ dấu gạch ngang ở đầu/cuối
+}
+
 async function main() {
   console.log('Seeding database...');
 
@@ -19,15 +35,15 @@ async function main() {
   });
   console.log('Created admin user:', admin.email);
 
-  // Create categories
+  // Create categories — ID = slug không dấu (dùng chung với storefront)
   const categoryNames = ['Rau Củ', 'Trái Cây', 'Đặc Sản Vùng Miền'];
   const categories: Record<string, string> = {};
 
   for (const name of categoryNames) {
-    const id = name.toLowerCase().replace(/\s+/g, '-');
+    const id = slugify(name);
     const cat = await prisma.category.upsert({
       where: { id },
-      update: {},
+      update: { name },
       create: { id, name },
     });
     categories[name] = cat.id;
@@ -65,10 +81,10 @@ async function main() {
   ];
 
   for (const product of products) {
-    const id = product.name.toLowerCase().replace(/\s+/g, '-');
+    const id = slugify(product.name);
     await prisma.product.upsert({
       where: { id },
-      update: {},
+      update: { categoryId: product.categoryId },
       create: {
         id,
         ...product,

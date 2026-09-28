@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Layout, Menu, Card, Row, Col, Statistic, message } from 'antd';
 import {
   ShoppingOutlined,
-  PackageOutlined,
+  InboxOutlined,
   UserOutlined,
   LogoutOutlined,
 } from '@ant-design/icons';
@@ -47,7 +47,7 @@ export default function DashboardPage() {
 
   const menuItems = [
     { key: 'dashboard', icon: <ShoppingOutlined />, label: 'Tổng quan', href: '/dashboard' },
-    { key: 'products', icon: <PackageOutlined />, label: 'Sản phẩm', href: '/san-pham' },
+    { key: 'products', icon: <InboxOutlined />, label: 'Sản phẩm', href: '/san-pham' },
     { key: 'orders', icon: <ShoppingOutlined />, label: 'Đơn hàng', href: '/don-hang' },
   ];
 
@@ -80,7 +80,7 @@ export default function DashboardPage() {
           <Row gutter={16}>
             <Col span={8}>
               <Card>
-                <Statistic title="Sản phẩm" value={stats.products} prefix={<PackageOutlined />} />
+                <Statistic title="Sản phẩm" value={stats.products} prefix={<InboxOutlined />} />
               </Card>
             </Col>
             <Col span={8}>

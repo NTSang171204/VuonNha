@@ -1,34 +1,40 @@
-// Shared enums
-export enum OrderStatus {
-  PENDING = 'PENDING',
-  CONFIRMED = 'CONFIRMED',
-  DELIVERING = 'DELIVERING',
-  COMPLETED = 'COMPLETED',
-  CANCELLED = 'CANCELLED',
-}
+// Shared enums (as const objects for Node.js strip-only compatibility)
 
-export enum ProductStatus {
-  ACTIVE = 'ACTIVE',
-  INACTIVE = 'INACTIVE',
-}
+export const OrderStatus = {
+  PENDING: 'PENDING',
+  CONFIRMED: 'CONFIRMED',
+  DELIVERING: 'DELIVERING',
+  COMPLETED: 'COMPLETED',
+  CANCELLED: 'CANCELLED',
+} as const;
+export type OrderStatus = (typeof OrderStatus)[keyof typeof OrderStatus];
 
-export enum Role {
-  ADMIN = 'ADMIN',
-  CUSTOMER = 'CUSTOMER',
-}
+export const ProductStatus = {
+  ACTIVE: 'ACTIVE',
+  INACTIVE: 'INACTIVE',
+} as const;
+export type ProductStatus = (typeof ProductStatus)[keyof typeof ProductStatus];
 
-export enum Unit {
-  KG = 'KG',
-  BUNDLE = 'BUNDLE',
-  BOX = 'BOX',
-  FRUIT = 'FRUIT',
-}
+export const Role = {
+  ADMIN: 'ADMIN',
+  CUSTOMER: 'CUSTOMER',
+} as const;
+export type Role = (typeof Role)[keyof typeof Role];
 
-export enum PriceRange {
-  UNDER_50K = 'UNDER_50K',
-  RANGE_50K_100K = 'RANGE_50K_100K',
-  OVER_100K = 'OVER_100K',
-}
+export const Unit = {
+  KG: 'KG',
+  BUNDLE: 'BUNDLE',
+  BOX: 'BOX',
+  FRUIT: 'FRUIT',
+} as const;
+export type Unit = (typeof Unit)[keyof typeof Unit];
+
+export const PriceRange = {
+  UNDER_50K: 'UNDER_50K',
+  RANGE_50K_100K: 'RANGE_50K_100K',
+  OVER_100K: 'OVER_100K',
+} as const;
+export type PriceRange = (typeof PriceRange)[keyof typeof PriceRange];
 
 // Order state machine transitions
 export const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {

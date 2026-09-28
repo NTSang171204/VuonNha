@@ -1,14 +1,11 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
 import './globals.css';
-import { Header } from '@/components/layout/Header';
+import { StorefrontShell } from '@/components/layout/StorefrontShell';
 import { Footer } from '@/components/layout/Footer';
 
-const inter = Inter({ subsets: ['latin'] });
-
 export const metadata: Metadata = {
-  title: 'Nông Sản Tươi - Mua sắm nông sản sạch',
-  description: 'Website bán nông sản tươi sạch trực tiếp từ nông trại',
+  title: 'Vườn Nhà - Nông sản sạch',
+  description: 'Nông sản sạch từ nông trại đối tác, thu hoạch trong tuần',
 };
 
 export default function RootLayout({
@@ -18,10 +15,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="vi">
-      <body className={inter.className}>
+      <body>
         <div className="flex min-h-screen flex-col">
-          <Header />
-          <main className="flex-1">{children}</main>
+          <StorefrontShell>{children}</StorefrontShell>
           <Footer />
         </div>
       </body>

@@ -8,7 +8,7 @@ import {
 } from 'antd';
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, LogoutOutlined,
-  ShoppingOutlined, PackageOutlined,
+  ShoppingOutlined, InboxOutlined,
 } from '@ant-design/icons';
 import api from '@/lib/api';
 
@@ -145,7 +145,7 @@ export default function ProductsPage() {
 
   const menuItems = [
     { key: 'dashboard', icon: <ShoppingOutlined />, label: 'Tổng quan', href: '/dashboard' },
-    { key: 'products', icon: <PackageOutlined />, label: 'Sản phẩm', href: '/san-pham' },
+    { key: 'products', icon: <InboxOutlined />, label: 'Sản phẩm', href: '/san-pham' },
     { key: 'orders', icon: <ShoppingOutlined />, label: 'Đơn hàng', href: '/don-hang' },
   ];
 
