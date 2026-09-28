@@ -69,7 +69,8 @@ API client in `src/lib/api.ts` (axios).
 - `Order.userId` nullable — guests can order without account.
 - `OrderItem` snapshots `productName` + `unitPrice` at order time (denormalized).
 - Order flow: `PENDING → CONFIRMED → DELIVERING → COMPLETED` (or `PENDING → CANCELLED`).
-- `Product.unit` is free-text (e.g. "kg", "bó").
+- `Product.unit` is enum: `KG`, `BUNDLE`, `BOX`, `FRUIT`.
+- `Product.price` is `Int` (VND, no float).
 - Enums (`Role`, `OrderStatus`, `ProductStatus`) defined in both Prisma schema and `packages/types` — keep in sync.
 
 ## Gotchas
@@ -81,6 +82,19 @@ API client in `src/lib/api.ts` (axios).
 - **`@farm/types` is consumed as source** (`main: ./src/index.ts`), not built output — no build step needed for it.
 - **Storefront and admin have different UI stacks** (Tailwind vs Ant Design) — don't share components between them.
 - **Local PostgreSQL** — no Docker. Install PostgreSQL 16, create `farm_ecommerce` DB, set password in `.env`.
+
+## Workflow
+
+Mỗi tính năng được thực hiện theo flow:
+
+```
+DB → API → UI → Test
+```
+
+1. **DB** — Schema, migration, seed (nếu cần)
+2. **API** — Endpoints, filters, validation, typecheck
+3. **UI** — Components, pages, tích hợp API
+4. **Test** — Typecheck, manual test, verify behavior
 
 ## Rules
 

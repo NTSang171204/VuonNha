@@ -22,7 +22,7 @@ export class ProductsController {
   @Get()
   findAll(
     @Query('page') page: number = 1,
-    @Query('limit') limit: number = 12,
+    @Query('limit') limit: number = 8,
     @Query('categoryId') categoryId?: string,
     @Query('search') search?: string,
     @Query('status') status?: string,
