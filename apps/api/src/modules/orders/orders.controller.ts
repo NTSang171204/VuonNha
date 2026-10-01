@@ -42,6 +42,11 @@ export class OrdersController {
     return this.ordersService.trackOrder(orderCode, phone);
   }
 
+  @Post('validate')
+  validateOrder(@Body() body: { items: { productId: string; quantity: number }[] }) {
+    return this.ordersService.validateOrder(body.items);
+  }
+
   @Post()
   create(@Body() dto: CreateOrderDto) {
     return this.ordersService.create(dto);

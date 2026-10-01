@@ -67,6 +67,7 @@ export interface PaginatedResponse<T> {
 
 // DTOs
 export interface CreateOrderDto {
+  idempotencyKey?: string;
   recipientName: string;
   recipientPhone: string;
   shippingAddressDetail: string;

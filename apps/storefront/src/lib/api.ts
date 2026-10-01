@@ -76,3 +76,15 @@ export async function createOrder(data: unknown) {
   });
   return res.json();
 }
+
+export async function validateOrder(
+  items: { productId: string; quantity: number }[],
+  shippingProvince?: string,
+) {
+  const res = await fetch(`${API_URL}/orders/validate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ items, shippingProvince }),
+  });
+  return res.json();
+}

@@ -70,6 +70,8 @@ model Product {
 
 model Order {
   id                    String      @id @default(cuid())
+  orderCode             String      @unique
+  idempotencyKey        String?     @unique
   userId                String?
   user                  User?       @relation(fields: [userId], references: [id])
   recipientName         String
@@ -80,6 +82,8 @@ model Order {
   deliveryDate          DateTime?
   deliveryTimeSlot      String?
   paymentMethod         String      @default("COD")
+  paymentStatus         String      @default("UNPAID")
+  shippingFee           Int         @default(0)
   status                OrderStatus @default(PENDING)
   totalAmount           Float
   createdAt             DateTime    @default(now())
