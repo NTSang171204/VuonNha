@@ -4,14 +4,14 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Layout, Menu, Table, Button, Space, Tag, Modal, Descriptions,
-  message, Card, Select, Timeline,
+  message, Card, Select, Timeline, Input,
 } from 'antd';
 import {
   EyeOutlined, LogoutOutlined, ShoppingOutlined, InboxOutlined,
   CheckCircleOutlined, CloseCircleOutlined, TruckOutlined,
 } from '@ant-design/icons';
 import api from '@/lib/api';
-import { OrderStatus, canTransition } from '@farm/types';
+import { OrderStatus, getNextActions } from '@farm/types';
 
 const { Header, Sider, Content } = Layout;
 const { Option } = Select;
@@ -42,6 +42,14 @@ const statusLabels: Record<string, string> = {
   CANCELLED: 'Đã hủy',
 };
 
+interface StatusHistory {
+  id: string;
+  toStatus: string;
+  changedBy: string | null;
+  note: string | null;
+  createdAt: string;
+}
+
 export default function OrdersPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -49,6 +57,8 @@ export default function OrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
+  const [history, setHistory] = useState<StatusHistory[]>([]);
+  const [cancelNote, setCancelNote] = useState('');
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -73,9 +83,16 @@ export default function OrdersPage() {
     fetchOrders();
   }, [router, statusFilter]);
 
-  const handleViewOrder = (order: Order) => {
+  const handleViewOrder = async (order: Order) => {
     setSelectedOrder(order);
     setModalOpen(true);
+    setCancelNote('');
+    try {
+      const { data } = await api.get(`/orders/${order.id}/history`);
+      setHistory(data || []);
+    } catch {
+      setHistory([]);
+    }
   };
 
   const handleUpdateStatus = async (orderId: string, newStatus: OrderStatus) => {
@@ -91,7 +108,7 @@ export default function OrdersPage() {
 
   const handleCancel = async (orderId: string) => {
     try {
-      await api.put(`/orders/${orderId}/cancel`);
+      await api.put(`/orders/${orderId}/cancel`, { note: cancelNote || undefined });
       message.success('Hủy đơn thành công');
       fetchOrders();
       setModalOpen(false);
@@ -259,6 +276,43 @@ export default function OrdersPage() {
                   ))}
                 </Space>
               </>
+            )}
+
+            {selectedOrder.status === OrderStatus.PENDING && (
+              <div className="mt-4">
+                <h3 className="mb-2 font-semibold">Hủy đơn hàng</h3>
+                <Space.Compact style={{ width: '100%' }}>
+                  <Input
+                    placeholder="Lý do hủy (không bắt buộc)"
+                    value={cancelNote}
+                    onChange={(e) => setCancelNote(e.target.value)}
+                  />
+                  <Button danger onClick={() => handleCancel(selectedOrder.id)}>
+                    Hủy đơn
+                  </Button>
+                </Space.Compact>
+              </div>
+            )}
+
+            {history.length > 0 && (
+              <div className="mt-4">
+                <h3 className="mb-2 font-semibold">Lịch sử trạng thái</h3>
+                <Timeline
+                  items={history.map((h) => ({
+                    children: (
+                      <div>
+                        <Tag color={statusColors[h.toStatus]}>
+                          {statusLabels[h.toStatus] || h.toStatus}
+                        </Tag>
+                        <div className="text-xs text-gray-500">
+                          {new Date(h.createdAt).toLocaleString('vi-VN')}
+                          {h.note && <span className="ml-2">— {h.note}</span>}
+                        </div>
+                      </div>
+                    ),
+                  }))}
+                />
+              </div>
             )}
           </div>
         )}

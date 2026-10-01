@@ -15,9 +15,11 @@
   },
   "dependencies": {
     "@prisma/client": "^6.2.1",
+    "bcryptjs": "^2.4.3",
     "pg": "^8.23.0"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/pg": "^8.23.1",
     "prisma": "^6.2.1",
     "tsx": "^4.19.2",

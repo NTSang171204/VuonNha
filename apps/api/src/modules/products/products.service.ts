@@ -21,7 +21,13 @@ export class ProductsService {
     const where: any = {};
     if (categoryId) where.categoryId = categoryId;
     if (search) where.name = { contains: search, mode: 'insensitive' };
-    if (status) where.status = status;
+    // Default: chỉ hiển thị sản phẩm ACTIVE cho storefront.
+    // Admin gửi status=ALL để xem tất cả, hoặc status=INACTIVE để xem đã ẩn.
+    if (status && status !== 'ALL') {
+      where.status = status;
+    } else if (!status) {
+      where.status = ProductStatus.ACTIVE;
+    }
     if (inStock) where.stock = { gt: 0 };
 
     if (priceRange) {
@@ -80,7 +86,7 @@ export class ProductsService {
     await this.findOne(id);
     return this.prisma.product.update({
       where: { id },
-      data: { status: ProductStatus.INACTIVE },
+      data: { status: ProductStatus.INACTIVE, deletedAt: new Date() },
     });
   }
 }

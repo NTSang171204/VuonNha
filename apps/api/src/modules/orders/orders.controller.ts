@@ -13,6 +13,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { Role, CreateOrderDto, UpdateOrderStatusDto } from '@farm/types';
+import { CurrentUser } from '../auth/current-user.decorator';
 
 @Controller('orders')
 export class OrdersController {
@@ -37,6 +38,13 @@ export class OrdersController {
     return this.ordersService.findOne(id);
   }
 
+  @Get(':id/history')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  getHistory(@Param('id') id: string) {
+    return this.ordersService.getHistory(id);
+  }
+
   @Get('track/:orderCode')
   trackOrder(@Param('orderCode') orderCode: string, @Query('phone') phone: string) {
     return this.ordersService.trackOrder(orderCode, phone);
@@ -55,14 +63,22 @@ export class OrdersController {
   @Put(':id/status')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
-  updateStatus(@Param('id') id: string, @Body() dto: UpdateOrderStatusDto) {
-    return this.ordersService.updateStatus(id, dto.status);
+  updateStatus(
+    @Param('id') id: string,
+    @Body() dto: UpdateOrderStatusDto & { note?: string },
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.ordersService.updateStatus(id, dto.status, user.id, dto.note);
   }
 
   @Put(':id/cancel')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
-  cancel(@Param('id') id: string) {
-    return this.ordersService.cancel(id);
+  cancel(
+    @Param('id') id: string,
+    @Body() body: { note?: string },
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.ordersService.cancel(id, user.id, body.note);
   }
 }

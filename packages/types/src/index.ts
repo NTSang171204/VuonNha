@@ -49,6 +49,8 @@ export function canTransition(from: OrderStatus, to: OrderStatus): boolean {
   return ORDER_TRANSITIONS[from]?.includes(to) ?? false;
 }
 
+export { getNextActions, transitionOrder } from './order-state-machine';
+
 // API Response types
 export interface ApiResponse<T = unknown> {
   success: boolean;

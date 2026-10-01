@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/store/cart';
 import { Plus, Minus, ShoppingCart } from 'lucide-react';
 import { useState } from 'react';
@@ -13,6 +14,7 @@ interface Product {
   price: number;
   unit: string;
   stock: number;
+  status?: string;
   category?: { name: string };
 }
 
@@ -28,11 +30,15 @@ const HARDCODED_HARVEST = 'Thu hoạch ngày 25/09';
 
 export function ProductDetail({ product }: { product: Product }) {
   const addItem = useCartStore((s) => s.addItem);
+  const router = useRouter();
   const [quantity, setQuantity] = useState(1);
   const [weight, setWeight] = useState(1); // kg
 
   const unitLabel = UNIT_LABELS[product.unit] || product.unit;
   const isWeightBased = product.unit === 'KG';
+  const isInactive = product.status === 'INACTIVE';
+  const isOutOfStock = product.stock === 0;
+  const isDisabled = isInactive || isOutOfStock;
 
   const displayQuantity = isWeightBased ? weight : quantity;
   const subtotal = product.price * displayQuantity;
@@ -50,7 +56,7 @@ export function ProductDetail({ product }: { product: Product }) {
 
   const handleBuyNow = () => {
     handleAddToCart();
-    // TODO: Navigate to checkout
+    router.push('/thanh-toan');
   };
 
   return (
@@ -188,19 +194,28 @@ export function ProductDetail({ product }: { product: Product }) {
           </p>
         </div>
 
+        {/* Inactive notice */}
+        {isInactive && (
+          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-center">
+            <span className="text-sm font-medium text-red-600">
+              Sản phẩm tạm ngừng bán
+            </span>
+          </div>
+        )}
+
         {/* CTA Buttons */}
         <div className="mb-6 flex flex-col gap-3">
           <button
             onClick={handleAddToCart}
-            disabled={product.stock === 0}
+            disabled={isDisabled}
             className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-primary py-4 text-lg font-semibold text-primary transition-colors hover:bg-primary hover:text-white disabled:border-gray-300 disabled:text-gray-300 disabled:hover:bg-transparent"
           >
             <ShoppingCart className="h-5 w-5" />
-            {product.stock === 0 ? 'Hết hàng' : 'Thêm vào giỏ'}
+            {isInactive ? 'Ngừng bán' : isOutOfStock ? 'Hết hàng' : 'Thêm vào giỏ'}
           </button>
           <button
             onClick={handleBuyNow}
-            disabled={product.stock === 0}
+            disabled={isDisabled}
             className="w-full rounded-xl bg-primary py-4 text-lg font-semibold text-white transition-colors hover:bg-primary/90 disabled:bg-gray-300"
           >
             Mua ngay

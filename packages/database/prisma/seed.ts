@@ -1,4 +1,5 @@
 import { PrismaClient, Role, ProductStatus, Unit } from '@prisma/client';
+import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
@@ -22,18 +23,20 @@ async function main() {
   console.log('Seeding database...');
 
   // Create admin user
+  const adminPassword = await bcrypt.hash('Admin@123', 10);
   const admin = await prisma.user.upsert({
     where: { email: 'admin@farm.com' },
     update: {},
     create: {
       name: 'Admin',
       email: 'admin@farm.com',
-      password: '$2b$10$placeholderhash', // TODO: Replace with real bcrypt hash
+      password: adminPassword,
       phoneNumber: '0123456789',
       role: Role.ADMIN,
     },
   });
   console.log('Created admin user:', admin.email);
+  console.log('Admin password: Admin@123');
 
   // Create categories — ID = slug không dấu (dùng chung với storefront)
   const categoryNames = ['Rau Củ', 'Trái Cây', 'Đặc Sản Vùng Miền'];

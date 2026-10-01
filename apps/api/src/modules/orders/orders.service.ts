@@ -206,7 +206,12 @@ export class OrdersService {
     });
   }
 
-  async updateStatus(id: string, newStatus: UpdateOrderStatusDto['status']) {
+  async updateStatus(
+    id: string,
+    newStatus: UpdateOrderStatusDto['status'],
+    changedBy?: string,
+    note?: string,
+  ) {
     const order = await this.findOne(id);
 
     if (!canTransition(order.status as OrderStatus, newStatus)) {
@@ -215,14 +220,27 @@ export class OrdersService {
       );
     }
 
-    return this.prisma.order.update({
-      where: { id },
-      data: { status: newStatus },
-      include: { items: true },
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.order.update({
+        where: { id },
+        data: { status: newStatus },
+        include: { items: true },
+      });
+
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId: id,
+          toStatus: newStatus,
+          changedBy: changedBy || null,
+          note: note || null,
+        },
+      });
+
+      return updated;
     });
   }
 
-  async cancel(id: string) {
+  async cancel(id: string, changedBy?: string, note?: string) {
     const order = await this.findOne(id);
 
     if (order.status !== OrderStatus.PENDING) {
@@ -240,11 +258,31 @@ export class OrdersService {
       }
 
       // Update order status
-      return tx.order.update({
+      const updated = await tx.order.update({
         where: { id },
         data: { status: OrderStatus.CANCELLED },
         include: { items: true },
       });
+
+      // Ghi lịch sử hủy
+      await tx.orderStatusHistory.create({
+        data: {
+          orderId: id,
+          toStatus: OrderStatus.CANCELLED,
+          changedBy: changedBy || null,
+          note: note || null,
+        },
+      });
+
+      return updated;
+    });
+  }
+
+  async getHistory(id: string) {
+    const order = await this.findOne(id);
+    return this.prisma.orderStatusHistory.findMany({
+      where: { orderId: order.id },
+      orderBy: { createdAt: 'asc' },
     });
   }
 

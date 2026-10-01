@@ -22,9 +22,17 @@ interface Product {
   unit: string;
   stock: number;
   status: string;
+  deletedAt?: string | null;
   category?: { name: string };
   imageUrl?: string;
 }
+
+const UNIT_OPTIONS = [
+  { value: 'KG', label: 'Kg' },
+  { value: 'BUNDLE', label: 'Bó' },
+  { value: 'BOX', label: 'Hộp/Khay' },
+  { value: 'FRUIT', label: 'Trái' },
+];
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -33,12 +41,14 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [form] = Form.useForm();
 
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const { data } = await api.get('/products?limit=100');
+      const statusParam = statusFilter !== 'ALL' ? `&status=${statusFilter}` : '';
+      const { data } = await api.get(`/products?limit=100${statusParam}`);
       setProducts(data.items || []);
     } catch {
       message.error('Không thể tải sản phẩm');
@@ -64,7 +74,7 @@ export default function ProductsPage() {
     }
     fetchProducts();
     fetchCategories();
-  }, [router]);
+  }, [router, statusFilter]);
 
   const handleSubmit = async (values: any) => {
     try {
@@ -186,6 +196,18 @@ export default function ProductsPage() {
               </Button>
             }
           >
+            <div className="mb-4 flex items-center gap-2">
+              <span>Lọc theo trạng thái:</span>
+              <Select
+                value={statusFilter}
+                onChange={setStatusFilter}
+                style={{ width: 150 }}
+              >
+                <Option value="ALL">Tất cả</Option>
+                <Option value="ACTIVE">Đang bán</Option>
+                <Option value="INACTIVE">Ngừng bán</Option>
+              </Select>
+            </div>
             <Table
               columns={columns}
               dataSource={products}
@@ -219,10 +241,20 @@ export default function ProductsPage() {
             <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="unit" label="Đơn vị" rules={[{ required: true }]}>
-            <Input placeholder="kg, bó, khay..." />
+            <Select>
+              {UNIT_OPTIONS.map((opt) => (
+                <Option key={opt.value} value={opt.value}>{opt.label}</Option>
+              ))}
+            </Select>
           </Form.Item>
           <Form.Item name="stock" label="Tồn kho" rules={[{ required: true }]}>
             <InputNumber min={0} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="status" label="Trạng thái" rules={[{ required: true }]}>
+            <Select>
+              <Option value="ACTIVE">Đang bán</Option>
+              <Option value="INACTIVE">Ngừng bán</Option>
+            </Select>
           </Form.Item>
           <Form.Item name="imageUrl" label="URL hình ảnh">
             <Input />

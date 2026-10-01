@@ -63,6 +63,7 @@ model Product {
   unit        Unit          @default(KG)
   stock       Int           @default(0)
   status      ProductStatus @default(ACTIVE)
+  deletedAt   DateTime?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   orderItems  OrderItem[]
@@ -89,6 +90,7 @@ model Order {
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
   items                 OrderItem[]
+  statusHistory         OrderStatusHistory[]
 }
 
 model OrderItem {
@@ -101,4 +103,14 @@ model OrderItem {
   unitPrice   Float
   quantity    Int
   subtotal    Float
+}
+
+model OrderStatusHistory {
+  id        String      @id @default(cuid())
+  orderId   String
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  toStatus  OrderStatus
+  changedBy String?
+  note      String?
+  createdAt DateTime    @default(now())
 }
