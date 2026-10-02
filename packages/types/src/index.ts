@@ -1,13 +1,7 @@
 // Shared enums (as const objects for Node.js strip-only compatibility)
 
-export const OrderStatus = {
-  PENDING: 'PENDING',
-  CONFIRMED: 'CONFIRMED',
-  DELIVERING: 'DELIVERING',
-  COMPLETED: 'COMPLETED',
-  CANCELLED: 'CANCELLED',
-} as const;
-export type OrderStatus = (typeof OrderStatus)[keyof typeof OrderStatus];
+import type { OrderStatus } from './order-state-machine';
+export { OrderStatus, ORDER_TRANSITIONS, canTransition, getNextActions, transitionOrder } from './order-state-machine';
 
 export const ProductStatus = {
   ACTIVE: 'ACTIVE',
@@ -35,21 +29,6 @@ export const PriceRange = {
   OVER_100K: 'OVER_100K',
 } as const;
 export type PriceRange = (typeof PriceRange)[keyof typeof PriceRange];
-
-// Order state machine transitions
-export const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
-  [OrderStatus.CONFIRMED]: [OrderStatus.DELIVERING],
-  [OrderStatus.DELIVERING]: [OrderStatus.COMPLETED],
-  [OrderStatus.COMPLETED]: [],
-  [OrderStatus.CANCELLED]: [],
-};
-
-export function canTransition(from: OrderStatus, to: OrderStatus): boolean {
-  return ORDER_TRANSITIONS[from]?.includes(to) ?? false;
-}
-
-export { getNextActions, transitionOrder } from './order-state-machine';
 
 // API Response types
 export interface ApiResponse<T = unknown> {
