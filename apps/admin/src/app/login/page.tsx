@@ -13,8 +13,7 @@ export default function LoginPage() {
   const onFinish = async (values: { email: string; password: string }) => {
     setLoading(true);
     try {
-      const { data } = await api.post('/auth/login', values);
-      localStorage.setItem('admin_token', data.accessToken);
+      await api.post('/auth/login', values);
       message.success('Đăng nhập thành công');
       router.push('/dashboard');
     } catch (error: any) {
