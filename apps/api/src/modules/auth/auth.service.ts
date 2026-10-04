@@ -34,4 +34,17 @@ export class AuthService {
       },
     };
   }
+
+  me(user: { id: string; name: string; email: string; role: string }) {
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role as Role,
+    };
+  }
+
+  logout() {
+    return { success: true };
+  }
 }

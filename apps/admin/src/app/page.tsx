@@ -8,12 +8,12 @@ export default function Home() {
 
   useEffect(() => {
     const token = localStorage.getItem('admin_token');
-    if (!token) {
-      router.push('/login');
-    } else {
-      router.push('/dashboard');
-    }
+    router.replace(token ? '/dashboard' : '/login');
   }, [router]);
 
-  return <div>Đang chuyển hướng...</div>;
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-surface text-ink-secondary">
+      Đang chuyển hướng...
+    </div>
+  );
 }
