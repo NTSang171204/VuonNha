@@ -21,19 +21,22 @@ function slugify(text: string): string {
 async function main() {
   console.log('Seeding database...');
 
-  // Create admin user
+  // Password: admin123 (bcrypt)
+  const adminPassword =
+    '$2a$10$rK38XiGMENk3Nko8qVK/MuXrnjb./RRf9dw/./Mikkk7UV5HANiKS';
+
   const admin = await prisma.user.upsert({
     where: { email: 'admin@farm.com' },
-    update: {},
+    update: { password: adminPassword },
     create: {
       name: 'Admin',
       email: 'admin@farm.com',
-      password: '$2b$10$placeholderhash', // TODO: Replace with real bcrypt hash
+      password: adminPassword,
       phoneNumber: '0123456789',
       role: Role.ADMIN,
     },
   });
-  console.log('Created admin user:', admin.email);
+  console.log('Created admin user:', admin.email, '(password: admin123)');
 
   // Create categories — ID = slug không dấu (dùng chung với storefront)
   const categoryNames = ['Rau Củ', 'Trái Cây', 'Đặc Sản Vùng Miền'];

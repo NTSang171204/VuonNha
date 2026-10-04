@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/store/cart';
-import { createOrder, validateOrder } from '@/lib/api';
+import { createOrder } from '@/lib/api';
 import { FormField, FormTextarea } from './FormField';
 import { ProvinceSelect } from './ProvinceSelect';
 import { TimeSlotPicker } from './TimeSlotPicker';
@@ -97,17 +97,22 @@ export function CheckoutPage() {
     try {
       const result = await createOrder({
         ...form,
-        items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+        idempotencyKey:
+          typeof crypto !== 'undefined' && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        items: items.map((i) => ({
+          productId: i.productId,
+          quantity: Math.max(1, Math.round(i.quantity)),
+        })),
       });
 
-      if (result.id) {
-        clearCart();
-        router.push(`/thanh-toan/thanh-cong?orderId=${result.id}`);
-      } else {
-        setError(result.message || 'Có lỗi xảy ra khi đặt hàng');
-      }
-    } catch {
-      setError('Có lỗi xảy ra khi đặt hàng');
+      clearCart();
+      router.push(
+        `/thanh-toan/thanh-cong?orderCode=${encodeURIComponent(result.orderCode)}&phone=${encodeURIComponent(form.recipientPhone)}`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Có lỗi xảy ra khi đặt hàng');
     } finally {
       setLoading(false);
     }

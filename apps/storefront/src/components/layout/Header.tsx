@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/store/cart';
 import { ShoppingCart, Search, Menu, X } from 'lucide-react';
 
@@ -16,9 +17,22 @@ interface Props {
 }
 
 export function Header({ navItems, onOpenCart }: Props) {
+  const router = useRouter();
   const [searchOpen, setSearchOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [query, setQuery] = useState('');
   const itemCount = useCartStore((s) => s.itemCount());
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = query.trim();
+    setSearchOpen(false);
+    if (q) {
+      router.push(`/?search=${encodeURIComponent(q)}`);
+    } else {
+      router.push('/');
+    }
+  };
 
   return (
     <>
@@ -76,14 +90,26 @@ export function Header({ navItems, onOpenCart }: Props) {
         </div>
         {searchOpen && (
           <div className="border-t border-line px-4 py-4 md:px-14">
-            <div className="mx-auto max-w-[720px]">
+            <form
+              onSubmit={handleSearch}
+              className="mx-auto flex h-[52px] max-w-[720px] items-center gap-2 border border-line bg-white pl-4 pr-2"
+            >
               <input
                 type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
                 placeholder="Tìm rau, trái cây, đặc sản…"
-                className="h-[52px] w-full border border-line bg-white px-4 text-base outline-none"
+                className="h-full min-w-0 flex-1 border-0 bg-transparent text-base outline-none"
                 autoFocus
               />
-            </div>
+              <button
+                type="submit"
+                aria-label="Tìm"
+                className="grid h-11 w-11 place-items-center border-0 bg-transparent"
+              >
+                <Search className="h-5 w-5" />
+              </button>
+            </form>
           </div>
         )}
       </header>
@@ -117,7 +143,7 @@ export function Header({ navItems, onOpenCart }: Props) {
                   key={item.href}
                   href={item.href}
                   onClick={() => setMenuOpen(false)}
-                  className="flex min-h-[13] items-center px-6 py-3 text-[17px] text-ink no-underline"
+                  className="flex min-h-[52px] items-center px-6 py-3 text-[17px] text-ink no-underline"
                 >
                   {item.label}
                 </Link>

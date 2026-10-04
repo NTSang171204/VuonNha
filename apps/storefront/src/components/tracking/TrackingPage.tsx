@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { trackOrder } from '@/lib/api';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { trackOrder, Order } from '@/lib/api';
 import { Package, Truck, CheckCircle, XCircle, Clock } from 'lucide-react';
 
 const statusConfig: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
@@ -13,11 +14,29 @@ const statusConfig: Record<string, { icon: React.ReactNode; color: string; label
 };
 
 export function TrackingPage() {
+  const searchParams = useSearchParams();
   const [orderCode, setOrderCode] = useState('');
   const [phone, setPhone] = useState('');
-  const [order, setOrder] = useState<any>(null);
+  const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const code = searchParams.get('orderCode');
+    const phoneParam = searchParams.get('phone');
+    if (code) setOrderCode(code);
+    if (phoneParam) setPhone(phoneParam);
+    if (code && phoneParam) {
+      setLoading(true);
+      trackOrder(code, phoneParam)
+        .then((result) => {
+          if (result) setOrder(result);
+          else setError('Không tìm thấy đơn hàng. Vui lòng kiểm tra lại mã đơn và số điện thoại.');
+        })
+        .catch(() => setError('Có lỗi xảy ra. Vui lòng thử lại.'))
+        .finally(() => setLoading(false));
+    }
+  }, [searchParams]);
 
   const handleTrack = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,7 +45,7 @@ export function TrackingPage() {
     setOrder(null);
 
     try {
-      const result = await trackOrder(orderCode, phone);
+      const result = await trackOrder(orderCode.trim(), phone.trim());
       if (result) {
         setOrder(result);
       } else {
@@ -49,7 +68,7 @@ export function TrackingPage() {
             required
             value={orderCode}
             onChange={(e) => setOrderCode(e.target.value)}
-            placeholder="Nhập mã đơn hàng"
+            placeholder="VD: VN-20261004-0001"
             className="w-full rounded-lg border px-4 py-2"
           />
         </div>
@@ -81,7 +100,7 @@ export function TrackingPage() {
         <div className="rounded-xl border bg-white p-6">
           <h2 className="mb-4 text-lg font-bold">Thông tin đơn hàng</h2>
           <div className="mb-4 space-y-2 text-sm">
-            <p><span className="font-medium">Mã đơn:</span> {order.id}</p>
+            <p><span className="font-medium">Mã đơn:</span> {order.orderCode}</p>
             <p><span className="font-medium">Người nhận:</span> {order.recipientName}</p>
             <p><span className="font-medium">Điện thoại:</span> {order.recipientPhone}</p>
             <p><span className="font-medium">Địa chỉ:</span> {order.shippingAddressDetail}, {order.shippingProvince}</p>
@@ -101,7 +120,7 @@ export function TrackingPage() {
           <div>
             <h3 className="mb-2 font-medium">Sản phẩm</h3>
             <div className="space-y-2">
-              {order.items?.map((item: any) => (
+              {order.items?.map((item) => (
                 <div key={item.id} className="flex justify-between text-sm">
                   <span>{item.productName} x{item.quantity}</span>
                   <span>{item.subtotal?.toLocaleString('vi-VN')}đ</span>

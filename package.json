@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "pnpm --parallel --filter \"./apps/*\" dev",
-    "dev:api": "pnpm --filter @farm/api start:dev",
+    "dev:api": "pnpm --filter @farm/api dev",
     "dev:storefront": "pnpm --filter @farm/storefront dev",
     "dev:admin": "pnpm --filter @farm/admin dev",
     "build": "pnpm --filter \"./packages/*\" build && pnpm --filter \"./apps/*\" build",

@@ -1,6 +1,15 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateProductDto, UpdateProductDto, ProductStatus, PaginatedResponse, PriceRange } from '@farm/types';
+import {
+  CreateProductDto,
+  UpdateProductDto,
+  ProductStatus,
+  PaginatedResponse,
+  PriceRange,
+} from '@farm/types';
+
+const MAX_LIMIT = 100;
 
 @Injectable()
 export class ProductsService {
@@ -14,14 +23,17 @@ export class ProductsService {
     status?: string;
     priceRange?: PriceRange;
     inStock?: boolean;
+    sort?: string;
   }): Promise<PaginatedResponse<any>> {
-    const { page, limit, categoryId, search, status, priceRange, inStock } = params;
+    const page = Math.max(1, Number(params.page) || 1);
+    const limit = Math.min(MAX_LIMIT, Math.max(1, Number(params.limit) || 8));
+    const { categoryId, search, status, priceRange, inStock, sort } = params;
     const skip = (page - 1) * limit;
 
-    const where: any = {};
+    const where: Prisma.ProductWhereInput = {};
     if (categoryId) where.categoryId = categoryId;
     if (search) where.name = { contains: search, mode: 'insensitive' };
-    if (status) where.status = status;
+    if (status) where.status = status as ProductStatus;
     if (inStock) where.stock = { gt: 0 };
 
     if (priceRange) {
@@ -38,13 +50,20 @@ export class ProductsService {
       }
     }
 
+    let orderBy: Prisma.ProductOrderByWithRelationInput = { createdAt: 'desc' };
+    if (sort === 'price-asc') orderBy = { price: 'asc' };
+    else if (sort === 'price-desc') orderBy = { price: 'desc' };
+    else if (sort === 'harvest' || sort === 'featured') {
+      orderBy = { createdAt: 'desc' };
+    }
+
     const [items, total] = await Promise.all([
       this.prisma.product.findMany({
         where,
         include: { category: true },
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy,
       }),
       this.prisma.product.count({ where }),
     ]);

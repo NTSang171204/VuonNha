@@ -4,18 +4,20 @@ import {
   BadRequestException,
   ConflictException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
-  CreateOrderDto,
   OrderStatus,
-  UpdateOrderStatusDto,
   PaginatedResponse,
+  ProductStatus,
   canTransition,
 } from '@farm/types';
+import { CreateOrderDto } from './dto/create-order.dto';
 
 const FREE_SHIPPING_THRESHOLD = 300000;
 const SHIPPING_FEE = 30000;
 const FREE_SHIP_PROVINCES = ['TP.Hồ Chí Minh', 'TP.HCM', 'Hồ Chí Minh'];
+const MAX_LIMIT = 100;
 
 @Injectable()
 export class OrdersService {
@@ -27,11 +29,13 @@ export class OrdersService {
     status?: string;
     search?: string;
   }): Promise<PaginatedResponse<any>> {
-    const { page, limit, status, search } = params;
+    const page = Math.max(1, Number(params.page) || 1);
+    const limit = Math.min(MAX_LIMIT, Math.max(1, Number(params.limit) || 20));
+    const { status, search } = params;
     const skip = (page - 1) * limit;
 
-    const where: any = {};
-    if (status) where.status = status;
+    const where: Prisma.OrderWhereInput = {};
+    if (status) where.status = status as OrderStatus;
     if (search) {
       where.OR = [
         { recipientName: { contains: search, mode: 'insensitive' } },
@@ -70,6 +74,10 @@ export class OrdersService {
   }
 
   async trackOrder(orderCode: string, phone: string) {
+    if (!phone) {
+      throw new BadRequestException('Vui lòng nhập số điện thoại');
+    }
+
     const order = await this.prisma.order.findFirst({
       where: { orderCode, recipientPhone: phone },
       include: { items: true },
@@ -78,14 +86,14 @@ export class OrdersService {
     return order;
   }
 
-  /**
-   * Validate stock + tính tổng tiền (server-side)
-   * Không tin giá từ client
-   */
   async validateOrder(
     items: { productId: string; quantity: number }[],
     shippingProvince?: string,
   ) {
+    if (!items?.length) {
+      throw new BadRequestException('Đơn hàng phải có ít nhất một sản phẩm');
+    }
+
     let subtotal = 0;
     const validatedItems: Array<{
       productId: string;
@@ -97,12 +105,20 @@ export class OrdersService {
     }> = [];
 
     for (const item of items) {
+      if (!Number.isInteger(item.quantity) || item.quantity < 1) {
+        throw new BadRequestException('Số lượng sản phẩm phải là số nguyên >= 1');
+      }
+
       const product = await this.prisma.product.findUnique({
         where: { id: item.productId },
       });
 
       if (!product) {
         throw new NotFoundException(`Không tìm thấy sản phẩm ${item.productId}`);
+      }
+
+      if (product.status !== ProductStatus.ACTIVE) {
+        throw new BadRequestException(`Sản phẩm "${product.name}" đã ngừng bán`);
       }
 
       if (product.stock < item.quantity) {
@@ -124,9 +140,8 @@ export class OrdersService {
       });
     }
 
-    // Free ship chỉ khi TP.HCM và đơn >= 300k
     const isFreeShip =
-      shippingProvince &&
+      !!shippingProvince &&
       FREE_SHIP_PROVINCES.includes(shippingProvince) &&
       subtotal >= FREE_SHIPPING_THRESHOLD;
     const shippingFee = isFreeShip ? 0 : SHIPPING_FEE;
@@ -141,11 +156,7 @@ export class OrdersService {
     };
   }
 
-  /**
-   * Tạo đơn hàng với idempotency key + trừ kho nguyên tử
-   */
   async create(dto: CreateOrderDto) {
-    // Kiểm tra idempotency key
     if (dto.idempotencyKey) {
       const existing = await this.prisma.order.findUnique({
         where: { idempotencyKey: dto.idempotencyKey },
@@ -155,58 +166,73 @@ export class OrdersService {
       }
     }
 
-    // Validate stock + tính tổng tiền
     const validation = await this.validateOrder(dto.items, dto.shippingProvince);
 
-    // Tạo order code: VN-YYYYMMDD-XXXX
-    const orderCode = await this.generateOrderCode();
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        return await this.prisma.$transaction(async (tx) => {
+          for (const item of dto.items) {
+            const result = await tx.product.updateMany({
+              where: { id: item.productId, stock: { gte: item.quantity } },
+              data: { stock: { decrement: item.quantity } },
+            });
 
-    // Transaction: trừ kho + tạo order
-    return this.prisma.$transaction(async (tx) => {
-      // Trừ kho nguyên tử
-      for (const item of dto.items) {
-        const result = await tx.product.updateMany({
-          where: { id: item.productId, stock: { gte: item.quantity } },
-          data: { stock: { decrement: item.quantity } },
+            if (result.count === 0) {
+              throw new ConflictException(
+                'Sản phẩm đã hết hàng hoặc không đủ số lượng',
+              );
+            }
+          }
+
+          const orderCode = await this.generateOrderCode(tx);
+
+          return tx.order.create({
+            data: {
+              orderCode,
+              idempotencyKey: dto.idempotencyKey,
+              recipientName: dto.recipientName,
+              recipientPhone: dto.recipientPhone,
+              shippingAddressDetail: dto.shippingAddressDetail,
+              shippingProvince: dto.shippingProvince,
+              shippingNote: dto.shippingNote,
+              deliveryDate: dto.deliveryDate ? new Date(dto.deliveryDate) : null,
+              deliveryTimeSlot: dto.deliveryTimeSlot,
+              paymentMethod: dto.paymentMethod || 'COD',
+              paymentStatus: 'UNPAID',
+              shippingFee: validation.shippingFee,
+              totalAmount: validation.total,
+              items: {
+                create: validation.items.map((item) => ({
+                  productId: item.productId,
+                  productName: item.name,
+                  unitPrice: item.unitPrice,
+                  quantity: item.quantity,
+                  subtotal: item.subtotal,
+                })),
+              },
+            },
+            include: { items: true },
+          });
         });
-
-        if (result.count === 0) {
-          throw new ConflictException('Sản phẩm đã hết hàng hoặc không đủ số lượng');
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002'
+        ) {
+          continue;
         }
+        throw error;
       }
+    }
 
-      // Tạo order
-      return tx.order.create({
-        data: {
-          orderCode,
-          idempotencyKey: dto.idempotencyKey,
-          recipientName: dto.recipientName,
-          recipientPhone: dto.recipientPhone,
-          shippingAddressDetail: dto.shippingAddressDetail,
-          shippingProvince: dto.shippingProvince,
-          shippingNote: dto.shippingNote,
-          deliveryDate: dto.deliveryDate ? new Date(dto.deliveryDate) : null,
-          deliveryTimeSlot: dto.deliveryTimeSlot,
-          paymentMethod: dto.paymentMethod || 'COD',
-          paymentStatus: 'UNPAID',
-          shippingFee: validation.shippingFee,
-          totalAmount: validation.total,
-          items: {
-            create: validation.items.map((item) => ({
-              productId: item.productId,
-              productName: item.name,
-              unitPrice: item.unitPrice,
-              quantity: item.quantity,
-              subtotal: item.subtotal,
-            })),
-          },
-        },
-        include: { items: true },
-      });
-    });
+    throw new ConflictException('Không thể tạo mã đơn hàng, vui lòng thử lại');
   }
 
-  async updateStatus(id: string, newStatus: UpdateOrderStatusDto['status']) {
+  async updateStatus(id: string, newStatus: OrderStatus) {
+    if (newStatus === OrderStatus.CANCELLED) {
+      return this.cancel(id);
+    }
+
     const order = await this.findOne(id);
 
     if (!canTransition(order.status as OrderStatus, newStatus)) {
@@ -229,9 +255,7 @@ export class OrdersService {
       throw new BadRequestException('Chỉ có thể hủy đơn hàng đang chờ xác nhận');
     }
 
-    // Restore stock in transaction
     return this.prisma.$transaction(async (tx) => {
-      // Restore stock
       for (const item of order.items) {
         await tx.product.update({
           where: { id: item.productId },
@@ -239,7 +263,6 @@ export class OrdersService {
         });
       }
 
-      // Update order status
       return tx.order.update({
         where: { id },
         data: { status: OrderStatus.CANCELLED },
@@ -248,15 +271,13 @@ export class OrdersService {
     });
   }
 
-  /**
-   * Tạo order code unique: VN-YYYYMMDD-XXXX
-   */
-  private async generateOrderCode(): Promise<string> {
+  private async generateOrderCode(
+    tx: Prisma.TransactionClient = this.prisma,
+  ): Promise<string> {
     const date = new Date();
     const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
 
-    // Tìm orderCode cuối cùng trong ngày
-    const lastOrder = await this.prisma.order.findFirst({
+    const lastOrder = await tx.order.findFirst({
       where: {
         orderCode: { startsWith: `VN-${dateStr}` },
       },
@@ -266,7 +287,7 @@ export class OrdersService {
     let sequence = 1;
     if (lastOrder) {
       const lastSequence = parseInt(lastOrder.orderCode.slice(-4), 10);
-      sequence = lastSequence + 1;
+      sequence = Number.isFinite(lastSequence) ? lastSequence + 1 : 1;
     }
 
     return `VN-${dateStr}-${sequence.toString().padStart(4, '0')}`;

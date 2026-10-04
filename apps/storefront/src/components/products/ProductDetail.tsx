@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/store/cart';
 import { Plus, Minus, ShoppingCart } from 'lucide-react';
 import { useState } from 'react';
@@ -27,15 +28,15 @@ const HARDCODED_ORIGIN = 'Cái Bè, Đồng Tháp';
 const HARDCODED_HARVEST = 'Thu hoạch ngày 25/09';
 
 export function ProductDetail({ product }: { product: Product }) {
+  const router = useRouter();
   const addItem = useCartStore((s) => s.addItem);
   const [quantity, setQuantity] = useState(1);
-  const [weight, setWeight] = useState(1); // kg
 
   const unitLabel = UNIT_LABELS[product.unit] || product.unit;
   const isWeightBased = product.unit === 'KG';
-
-  const displayQuantity = isWeightBased ? weight : quantity;
-  const subtotal = product.price * displayQuantity;
+  const maxQty = Math.max(1, product.stock);
+  const safeQty = Math.min(quantity, maxQty);
+  const subtotal = product.price * safeQty;
 
   const handleAddToCart = () => {
     addItem({
@@ -44,18 +45,17 @@ export function ProductDetail({ product }: { product: Product }) {
       price: product.price,
       unit: product.unit,
       imageUrl: product.imageUrl,
-      quantity: displayQuantity,
+      quantity: safeQty,
     });
   };
 
   const handleBuyNow = () => {
     handleAddToCart();
-    // TODO: Navigate to checkout
+    router.push('/thanh-toan');
   };
 
   return (
     <div className="grid gap-8 md:grid-cols-2">
-      {/* Product Image */}
       <div className="relative aspect-square overflow-hidden rounded-2xl bg-gray-100">
         {product.imageUrl ? (
           <Image
@@ -64,6 +64,7 @@ export function ProductDetail({ product }: { product: Product }) {
             fill
             className="object-cover"
             priority
+            unoptimized
           />
         ) : (
           <div className="flex h-full items-center justify-center text-gray-400">
@@ -72,7 +73,6 @@ export function ProductDetail({ product }: { product: Product }) {
         )}
       </div>
 
-      {/* Product Info & Call-to-Action */}
       <div className="flex flex-col">
         {product.category && (
           <span className="mb-2 text-sm font-medium uppercase tracking-wide text-muted">
@@ -104,40 +104,40 @@ export function ProductDetail({ product }: { product: Product }) {
           </div>
         </div>
 
-        {/* Quantity / Weight Selector */}
         <div className="mb-6">
           <span className="mb-3 block text-sm font-medium text-ink">
-            {isWeightBased ? 'Khối lượng' : 'Số lượng'}
+            {isWeightBased ? 'Khối lượng (kg nguyên)' : 'Số lượng'}
           </span>
 
-          {isWeightBased ? (
-            <div className="flex items-center gap-4">
-              <div className="flex items-center border border-line">
-                <button
-                  onClick={() => setWeight((w) => Math.max(0.5, w - 0.5))}
-                  className="grid h-11 w-11 place-items-center border-0 bg-transparent hover:bg-gray-100"
-                  aria-label="Giảm khối lượng"
-                >
-                  <Minus className="h-4 w-4" />
-                </button>
-                <span className="w-16 text-center text-lg font-semibold">
-                  {weight} kg
-                </span>
-                <button
-                  onClick={() => setWeight((w) => w + 0.5)}
-                  className="grid h-11 w-11 place-items-center border-0 bg-transparent hover:bg-gray-100"
-                  aria-label="Tăng khối lượng"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-              </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center border border-line">
+              <button
+                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                className="grid h-11 w-11 place-items-center border-0 bg-transparent hover:bg-gray-100"
+                aria-label="Giảm số lượng"
+              >
+                <Minus className="h-4 w-4" />
+              </button>
+              <span className="w-16 text-center text-lg font-semibold">
+                {safeQty}
+                {isWeightBased ? ' kg' : ''}
+              </span>
+              <button
+                onClick={() => setQuantity((q) => Math.min(maxQty, q + 1))}
+                className="grid h-11 w-11 place-items-center border-0 bg-transparent hover:bg-gray-100"
+                aria-label="Tăng số lượng"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
+            {isWeightBased ? (
               <div className="flex gap-2">
-                {[0.5, 1, 2, 3].map((w) => (
+                {[1, 2, 3, 5].filter((w) => w <= maxQty).map((w) => (
                   <button
                     key={w}
-                    onClick={() => setWeight(w)}
+                    onClick={() => setQuantity(w)}
                     className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                      weight === w
+                      safeQty === w
                         ? 'bg-primary text-white'
                         : 'border border-line text-ink hover:bg-gray-50'
                     }`}
@@ -146,36 +146,14 @@ export function ProductDetail({ product }: { product: Product }) {
                   </button>
                 ))}
               </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-4">
-              <div className="flex items-center border border-line">
-                <button
-                  onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  className="grid h-11 w-11 place-items-center border-0 bg-transparent hover:bg-gray-100"
-                  aria-label="Giảm số lượng"
-                >
-                  <Minus className="h-4 w-4" />
-                </button>
-                <span className="w-12 text-center text-lg font-semibold">
-                  {quantity}
-                </span>
-                <button
-                  onClick={() => setQuantity((q) => Math.min(product.stock, q + 1))}
-                  className="grid h-11 w-11 place-items-center border-0 bg-transparent hover:bg-gray-100"
-                  aria-label="Tăng số lượng"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-              </div>
+            ) : (
               <span className="text-sm text-muted">
                 (Còn {product.stock} {unitLabel})
               </span>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
-        {/* Subtotal */}
         <div className="mb-6 rounded-xl bg-surface p-4">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted">Tạm tính</span>
@@ -188,7 +166,6 @@ export function ProductDetail({ product }: { product: Product }) {
           </p>
         </div>
 
-        {/* CTA Buttons */}
         <div className="mb-6 flex flex-col gap-3">
           <button
             onClick={handleAddToCart}
@@ -207,7 +184,6 @@ export function ProductDetail({ product }: { product: Product }) {
           </button>
         </div>
 
-        {/* Description */}
         {product.description && (
           <div className="border-t border-line pt-6">
             <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">

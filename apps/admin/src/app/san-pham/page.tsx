@@ -219,7 +219,12 @@ export default function ProductsPage() {
             <InputNumber min={0} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item name="unit" label="Đơn vị" rules={[{ required: true }]}>
-            <Input placeholder="kg, bó, khay..." />
+            <Select placeholder="Chọn đơn vị">
+              <Option value="KG">kg</Option>
+              <Option value="BUNDLE">bó</Option>
+              <Option value="BOX">hộp</Option>
+              <Option value="FRUIT">trái</Option>
+            </Select>
           </Form.Item>
           <Form.Item name="stock" label="Tồn kho" rules={[{ required: true }]}>
             <InputNumber min={0} style={{ width: '100%' }} />

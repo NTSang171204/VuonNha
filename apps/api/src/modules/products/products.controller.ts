@@ -28,6 +28,7 @@ export class ProductsController {
     @Query('status') status?: string,
     @Query('priceRange') priceRange?: PriceRange,
     @Query('inStock') inStock?: string,
+    @Query('sort') sort?: string,
   ) {
     return this.productsService.findAll({
       page,
@@ -37,6 +38,7 @@ export class ProductsController {
       status,
       priceRange,
       inStock: inStock === 'true',
+      sort,
     });
   }
 

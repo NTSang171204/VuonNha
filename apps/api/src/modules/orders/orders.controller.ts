@@ -12,7 +12,12 @@ import { OrdersService } from './orders.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
-import { Role, CreateOrderDto, UpdateOrderStatusDto } from '@farm/types';
+import { Role, OrderStatus } from '@farm/types';
+import {
+  CreateOrderDto,
+  UpdateOrderStatusDto,
+  ValidateOrderDto,
+} from './dto/create-order.dto';
 
 @Controller('orders')
 export class OrdersController {
@@ -30,6 +35,14 @@ export class OrdersController {
     return this.ordersService.findAll({ page, limit, status, search });
   }
 
+  @Get('track/:orderCode')
+  trackOrder(
+    @Param('orderCode') orderCode: string,
+    @Query('phone') phone: string,
+  ) {
+    return this.ordersService.trackOrder(orderCode, phone);
+  }
+
   @Get(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
@@ -37,14 +50,9 @@ export class OrdersController {
     return this.ordersService.findOne(id);
   }
 
-  @Get('track/:orderCode')
-  trackOrder(@Param('orderCode') orderCode: string, @Query('phone') phone: string) {
-    return this.ordersService.trackOrder(orderCode, phone);
-  }
-
   @Post('validate')
-  validateOrder(@Body() body: { items: { productId: string; quantity: number }[] }) {
-    return this.ordersService.validateOrder(body.items);
+  validateOrder(@Body() body: ValidateOrderDto) {
+    return this.ordersService.validateOrder(body.items, body.shippingProvince);
   }
 
   @Post()
@@ -56,7 +64,7 @@ export class OrdersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
   updateStatus(@Param('id') id: string, @Body() dto: UpdateOrderStatusDto) {
-    return this.ordersService.updateStatus(id, dto.status);
+    return this.ordersService.updateStatus(id, dto.status as OrderStatus);
   }
 
   @Put(':id/cancel')

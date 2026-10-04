@@ -18,6 +18,7 @@ const { Option } = Select;
 
 interface Order {
   id: string;
+  orderCode: string;
   recipientName: string;
   recipientPhone: string;
   totalAmount: number;
@@ -80,23 +81,17 @@ export default function OrdersPage() {
 
   const handleUpdateStatus = async (orderId: string, newStatus: OrderStatus) => {
     try {
-      await api.put(`/orders/${orderId}/status`, { status: newStatus });
-      message.success('Cập nhật trạng thái thành công');
+      if (newStatus === OrderStatus.CANCELLED) {
+        await api.put(`/orders/${orderId}/cancel`);
+        message.success('Hủy đơn thành công');
+      } else {
+        await api.put(`/orders/${orderId}/status`, { status: newStatus });
+        message.success('Cập nhật trạng thái thành công');
+      }
       fetchOrders();
       setModalOpen(false);
     } catch (error: any) {
       message.error(error.response?.data?.message || 'Cập nhật thất bại');
-    }
-  };
-
-  const handleCancel = async (orderId: string) => {
-    try {
-      await api.put(`/orders/${orderId}/cancel`);
-      message.success('Hủy đơn thành công');
-      fetchOrders();
-      setModalOpen(false);
-    } catch (error: any) {
-      message.error(error.response?.data?.message || 'Hủy thất bại');
     }
   };
 
@@ -118,7 +113,7 @@ export default function OrdersPage() {
   };
 
   const columns = [
-    { title: 'Mã đơn', dataIndex: 'id', key: 'id', render: (id: string) => id.slice(0, 8) },
+    { title: 'Mã đơn', dataIndex: 'orderCode', key: 'orderCode' },
     { title: 'Người nhận', dataIndex: 'recipientName', key: 'recipientName' },
     { title: 'Điện thoại', dataIndex: 'recipientPhone', key: 'recipientPhone' },
     {
@@ -216,7 +211,9 @@ export default function OrdersPage() {
         {selectedOrder && (
           <div>
             <Descriptions column={2} bordered>
-              <Descriptions.Item label="Mã đơn">{selectedOrder.id}</Descriptions.Item>
+              <Descriptions.Item label="Mã đơn">
+                {selectedOrder.orderCode || selectedOrder.id}
+              </Descriptions.Item>
               <Descriptions.Item label="Trạng thái">
                 <Tag color={statusColors[selectedOrder.status]}>
                   {statusLabels[selectedOrder.status]}
