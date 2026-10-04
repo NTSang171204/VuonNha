@@ -4,17 +4,25 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Layout, Menu, Table, Button, Space, Tag, Modal, Descriptions,
-  message, Card, Select, Timeline,
+  message, Card, Select,
 } from 'antd';
 import {
   EyeOutlined, LogoutOutlined, ShoppingOutlined, InboxOutlined,
-  CheckCircleOutlined, CloseCircleOutlined, TruckOutlined,
 } from '@ant-design/icons';
 import api from '@/lib/api';
-import { OrderStatus, canTransition } from '@farm/types';
+import { OrderStatus } from '@farm/types';
 
 const { Header, Sider, Content } = Layout;
 const { Option } = Select;
+
+interface StatusHistoryItem {
+  id: string;
+  fromStatus: string | null;
+  toStatus: string;
+  createdAt: string;
+  note?: string | null;
+  changedBy?: { id: string; name: string; email: string } | null;
+}
 
 interface Order {
   id: string;
@@ -25,6 +33,7 @@ interface Order {
   status: string;
   createdAt: string;
   items: { productName: string; quantity: number; subtotal: number }[];
+  statusHistory?: StatusHistoryItem[];
 }
 
 const statusColors: Record<string, string> = {
@@ -43,10 +52,17 @@ const statusLabels: Record<string, string> = {
   CANCELLED: 'Đã hủy',
 };
 
+function formatStatusChange(from: string | null, to: string) {
+  const toLabel = statusLabels[to] || to;
+  if (!from) return toLabel;
+  return `${statusLabels[from] || from} -> ${toLabel}`;
+}
+
 export default function OrdersPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
@@ -74,9 +90,18 @@ export default function OrdersPage() {
     fetchOrders();
   }, [router, statusFilter]);
 
-  const handleViewOrder = (order: Order) => {
+  const handleViewOrder = async (order: Order) => {
     setSelectedOrder(order);
     setModalOpen(true);
+    setDetailLoading(true);
+    try {
+      const { data } = await api.get(`/orders/${order.id}`);
+      setSelectedOrder(data);
+    } catch {
+      message.error('Không thể tải chi tiết đơn hàng');
+    } finally {
+      setDetailLoading(false);
+    }
   };
 
   const handleUpdateStatus = async (orderId: string, newStatus: OrderStatus) => {
@@ -105,7 +130,7 @@ export default function OrdersPage() {
     if (status === OrderStatus.PENDING) {
       nextStatuses.push(OrderStatus.CONFIRMED, OrderStatus.CANCELLED);
     } else if (status === OrderStatus.CONFIRMED) {
-      nextStatuses.push(OrderStatus.DELIVERING);
+      nextStatuses.push(OrderStatus.DELIVERING, OrderStatus.CANCELLED);
     } else if (status === OrderStatus.DELIVERING) {
       nextStatuses.push(OrderStatus.COMPLETED);
     }
@@ -144,6 +169,32 @@ export default function OrdersPage() {
           Xem
         </Button>
       ),
+    },
+  ];
+
+  const historyColumns = [
+    {
+      title: 'Mã đơn',
+      key: 'orderCode',
+      render: () => selectedOrder?.orderCode || '-',
+    },
+    {
+      title: 'Trạng thái',
+      key: 'statusChange',
+      render: (_: unknown, record: StatusHistoryItem) =>
+        formatStatusChange(record.fromStatus, record.toStatus),
+    },
+    {
+      title: 'Người đổi',
+      key: 'changedBy',
+      render: (_: unknown, record: StatusHistoryItem) =>
+        record.changedBy?.name || 'Khách / Hệ thống',
+    },
+    {
+      title: 'Thời điểm',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      render: (date: string) => new Date(date).toLocaleString('vi-VN'),
     },
   ];
 
@@ -206,7 +257,7 @@ export default function OrdersPage() {
         open={modalOpen}
         onCancel={() => setModalOpen(false)}
         footer={null}
-        width={700}
+        width={800}
       >
         {selectedOrder && (
           <div>
@@ -243,7 +294,7 @@ export default function OrdersPage() {
             {getNextActions(selectedOrder.status as OrderStatus).length > 0 && (
               <>
                 <h3 className="mb-2 font-semibold">Cập nhật trạng thái</h3>
-                <Space>
+                <Space className="mb-4">
                   {getNextActions(selectedOrder.status as OrderStatus).map((status) => (
                     <Button
                       key={status}
@@ -257,6 +308,17 @@ export default function OrdersPage() {
                 </Space>
               </>
             )}
+
+            <h3 className="mb-2 mt-2 font-semibold">Lịch sử trạng thái</h3>
+            <Table
+              size="small"
+              rowKey="id"
+              loading={detailLoading}
+              pagination={false}
+              columns={historyColumns}
+              dataSource={selectedOrder.statusHistory || []}
+              locale={{ emptyText: 'Chưa có lịch sử trạng thái' }}
+            />
           </div>
         )}
       </Modal>

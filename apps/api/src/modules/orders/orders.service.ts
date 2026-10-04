@@ -19,6 +19,19 @@ const SHIPPING_FEE = 30000;
 const FREE_SHIP_PROVINCES = ['TP.Hồ Chí Minh', 'TP.HCM', 'Hồ Chí Minh'];
 const MAX_LIMIT = 100;
 
+const STATUS_HISTORY_INCLUDE = {
+  changedBy: { select: { id: true, name: true, email: true } },
+} as const;
+
+const ORDER_DETAIL_INCLUDE = {
+  items: true,
+  user: { select: { name: true, email: true } },
+  statusHistory: {
+    orderBy: { createdAt: 'desc' as const },
+    include: STATUS_HISTORY_INCLUDE,
+  },
+};
+
 @Injectable()
 export class OrdersService {
   constructor(private prisma: PrismaService) {}
@@ -47,7 +60,15 @@ export class OrdersService {
     const [items, total] = await Promise.all([
       this.prisma.order.findMany({
         where,
-        include: { items: true, user: { select: { name: true, email: true } } },
+        include: {
+          items: true,
+          user: { select: { name: true, email: true } },
+          statusHistory: {
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+            include: STATUS_HISTORY_INCLUDE,
+          },
+        },
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
@@ -67,7 +88,7 @@ export class OrdersService {
   async findOne(id: string) {
     const order = await this.prisma.order.findUnique({
       where: { id },
-      include: { items: true, user: { select: { name: true, email: true } } },
+      include: ORDER_DETAIL_INCLUDE,
     });
     if (!order) throw new NotFoundException('Không tìm thấy đơn hàng');
     return order;
@@ -160,6 +181,7 @@ export class OrdersService {
     if (dto.idempotencyKey) {
       const existing = await this.prisma.order.findUnique({
         where: { idempotencyKey: dto.idempotencyKey },
+        include: ORDER_DETAIL_INCLUDE,
       });
       if (existing) {
         return existing;
@@ -186,7 +208,7 @@ export class OrdersService {
 
           const orderCode = await this.generateOrderCode(tx);
 
-          return tx.order.create({
+          const order = await tx.order.create({
             data: {
               orderCode,
               idempotencyKey: dto.idempotencyKey,
@@ -211,7 +233,19 @@ export class OrdersService {
                 })),
               },
             },
-            include: { items: true },
+          });
+
+          await this.appendStatusHistory(tx, {
+            orderId: order.id,
+            fromStatus: null,
+            toStatus: OrderStatus.PENDING,
+            changedById: null,
+            note: 'Đặt hàng',
+          });
+
+          return tx.order.findUniqueOrThrow({
+            where: { id: order.id },
+            include: ORDER_DETAIL_INCLUDE,
           });
         });
       } catch (error) {
@@ -228,9 +262,13 @@ export class OrdersService {
     throw new ConflictException('Không thể tạo mã đơn hàng, vui lòng thử lại');
   }
 
-  async updateStatus(id: string, newStatus: OrderStatus) {
+  async updateStatus(
+    id: string,
+    newStatus: OrderStatus,
+    changedById?: string,
+  ) {
     if (newStatus === OrderStatus.CANCELLED) {
-      return this.cancel(id);
+      return this.cancel(id, changedById);
     }
 
     const order = await this.findOne(id);
@@ -241,18 +279,39 @@ export class OrdersService {
       );
     }
 
-    return this.prisma.order.update({
-      where: { id },
-      data: { status: newStatus },
-      include: { items: true },
+    return this.prisma.$transaction(async (tx) => {
+      await this.appendStatusHistory(tx, {
+        orderId: id,
+        fromStatus: order.status as OrderStatus,
+        toStatus: newStatus,
+        changedById: changedById ?? null,
+      });
+
+      return tx.order.update({
+        where: { id },
+        data: { status: newStatus },
+        include: ORDER_DETAIL_INCLUDE,
+      });
     });
   }
 
-  async cancel(id: string) {
+  async cancel(id: string, changedById?: string) {
     const order = await this.findOne(id);
+    const current = order.status as OrderStatus;
 
-    if (order.status !== OrderStatus.PENDING) {
-      throw new BadRequestException('Chỉ có thể hủy đơn hàng đang chờ xác nhận');
+    if (
+      current !== OrderStatus.PENDING &&
+      current !== OrderStatus.CONFIRMED
+    ) {
+      throw new BadRequestException(
+        'Chỉ có thể hủy đơn đang chờ xác nhận hoặc đã xác nhận',
+      );
+    }
+
+    if (!canTransition(current, OrderStatus.CANCELLED)) {
+      throw new BadRequestException(
+        `Không thể chuyển từ ${current} sang ${OrderStatus.CANCELLED}`,
+      );
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -263,11 +322,40 @@ export class OrdersService {
         });
       }
 
+      await this.appendStatusHistory(tx, {
+        orderId: id,
+        fromStatus: current,
+        toStatus: OrderStatus.CANCELLED,
+        changedById: changedById ?? null,
+        note: 'Hủy đơn và hoàn kho',
+      });
+
       return tx.order.update({
         where: { id },
         data: { status: OrderStatus.CANCELLED },
-        include: { items: true },
+        include: ORDER_DETAIL_INCLUDE,
       });
+    });
+  }
+
+  private async appendStatusHistory(
+    tx: Prisma.TransactionClient,
+    data: {
+      orderId: string;
+      fromStatus: OrderStatus | null;
+      toStatus: OrderStatus;
+      changedById: string | null;
+      note?: string;
+    },
+  ) {
+    await tx.orderStatusHistory.create({
+      data: {
+        orderId: data.orderId,
+        fromStatus: data.fromStatus,
+        toStatus: data.toStatus,
+        changedById: data.changedById,
+        note: data.note,
+      },
     });
   }
 

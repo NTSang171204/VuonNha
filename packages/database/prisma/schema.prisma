@@ -33,15 +33,16 @@ enum Unit {
 }
 
 model User {
-  id          String   @id @default(cuid())
-  name        String
-  email       String   @unique
-  password    String
-  phoneNumber String?
-  role        Role     @default(CUSTOMER)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  orders      Order[]
+  id             String               @id @default(cuid())
+  name           String
+  email          String               @unique
+  password       String
+  phoneNumber    String?
+  role           Role                 @default(CUSTOMER)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  orders         Order[]
+  statusChanges  OrderStatusHistory[]
 }
 
 model Category {
@@ -69,11 +70,11 @@ model Product {
 }
 
 model Order {
-  id                    String      @id @default(cuid())
-  orderCode             String      @unique
-  idempotencyKey        String?     @unique
+  id                    String               @id @default(cuid())
+  orderCode             String               @unique
+  idempotencyKey        String?              @unique
   userId                String?
-  user                  User?       @relation(fields: [userId], references: [id])
+  user                  User?                @relation(fields: [userId], references: [id])
   recipientName         String
   recipientPhone        String
   shippingAddressDetail String
@@ -81,14 +82,15 @@ model Order {
   shippingNote          String?
   deliveryDate          DateTime?
   deliveryTimeSlot      String?
-  paymentMethod         String      @default("COD")
-  paymentStatus         String      @default("UNPAID")
-  shippingFee           Int         @default(0)
-  status                OrderStatus @default(PENDING)
+  paymentMethod         String               @default("COD")
+  paymentStatus         String               @default("UNPAID")
+  shippingFee           Int                  @default(0)
+  status                OrderStatus          @default(PENDING)
   totalAmount           Float
-  createdAt             DateTime    @default(now())
-  updatedAt             DateTime    @updatedAt
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
   items                 OrderItem[]
+  statusHistory         OrderStatusHistory[]
 }
 
 model OrderItem {
@@ -101,4 +103,18 @@ model OrderItem {
   unitPrice   Float
   quantity    Int
   subtotal    Float
+}
+
+model OrderStatusHistory {
+  id          String       @id @default(cuid())
+  orderId     String
+  order       Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fromStatus  OrderStatus?
+  toStatus    OrderStatus
+  changedById String?
+  changedBy   User?        @relation(fields: [changedById], references: [id])
+  note        String?
+  createdAt   DateTime     @default(now())
+
+  @@index([orderId, createdAt])
 }

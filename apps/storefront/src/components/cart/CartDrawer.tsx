@@ -109,7 +109,20 @@ export function CartDrawer({ open, onClose }: Props) {
                   key={item.productId}
                   className="flex gap-4 border-b border-line py-5"
                 >
-                  <div className="h-[88px] w-[88px] flex-none rounded-md border border-line bg-surface" />
+                  <div className="relative h-[88px] w-[88px] flex-none overflow-hidden rounded-md border border-line bg-surface">
+                    {item.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={item.imageUrl}
+                        alt={item.name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-lg font-semibold text-muted">
+                        {item.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
                   <div className="flex min-w-0 flex-1 flex-col gap-2">
                     <div className="flex justify-between gap-3">
                       <div>

@@ -12,6 +12,7 @@ import { OrdersService } from './orders.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { CurrentUser } from '../auth/current-user.decorator';
 import { Role, OrderStatus } from '@farm/types';
 import {
   CreateOrderDto,
@@ -63,14 +64,22 @@ export class OrdersController {
   @Put(':id/status')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
-  updateStatus(@Param('id') id: string, @Body() dto: UpdateOrderStatusDto) {
-    return this.ordersService.updateStatus(id, dto.status as OrderStatus);
+  updateStatus(
+    @Param('id') id: string,
+    @Body() dto: UpdateOrderStatusDto,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.ordersService.updateStatus(
+      id,
+      dto.status as OrderStatus,
+      userId,
+    );
   }
 
   @Put(':id/cancel')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.ADMIN)
-  cancel(@Param('id') id: string) {
-    return this.ordersService.cancel(id);
+  cancel(@Param('id') id: string, @CurrentUser('id') userId: string) {
+    return this.ordersService.cancel(id, userId);
   }
 }
