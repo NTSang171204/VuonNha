@@ -2,11 +2,28 @@
 
 import { useEffect, useState } from 'react';
 import {
-  Table, Button, Space, Modal, Descriptions, message, Select, Input,
+  Table,
+  Button,
+  Space,
+  Modal,
+  Descriptions,
+  message,
+  Select,
+  Input,
+  Card,
+  Row,
+  Col,
+  Statistic,
+  Tag,
+  Typography,
+  List,
 } from 'antd';
+import { EyeOutlined, SearchOutlined } from '@ant-design/icons';
 import api from '@/lib/api';
 import { OrderStatus } from '@farm/types';
-import { statusBadgeClass, statusLabels } from '@/lib/status';
+import { statusLabels, statusTagColor } from '@/lib/status';
+
+const { Title, Text } = Typography;
 
 interface StatusHistoryItem {
   id: string;
@@ -143,12 +160,37 @@ export default function OrdersPage() {
   };
 
   const countCards = [
-    { key: undefined, label: 'Tất cả', count: counts.ALL, color: 'text-ink' },
-    { key: 'PENDING', label: 'Chờ xác nhận', count: counts.PENDING, color: 'text-status-pending-text' },
-    { key: 'CONFIRMED', label: 'Đã xác nhận', count: counts.CONFIRMED, color: 'text-status-processing-text' },
-    { key: 'DELIVERING', label: 'Đang giao', count: counts.DELIVERING, color: 'text-status-delivering-text' },
-    { key: 'COMPLETED', label: 'Hoàn tất', count: counts.COMPLETED, color: 'text-status-completed-text' },
-    { key: 'CANCELLED', label: 'Đã hủy', count: counts.CANCELLED, color: 'text-status-cancelled-text' },
+    { key: undefined, label: 'Tất cả', count: counts.ALL, color: undefined },
+    {
+      key: 'PENDING',
+      label: 'Chờ xác nhận',
+      count: counts.PENDING,
+      color: '#d97706',
+    },
+    {
+      key: 'CONFIRMED',
+      label: 'Đã xác nhận',
+      count: counts.CONFIRMED,
+      color: '#1d4ed8',
+    },
+    {
+      key: 'DELIVERING',
+      label: 'Đang giao',
+      count: counts.DELIVERING,
+      color: '#7e22ce',
+    },
+    {
+      key: 'COMPLETED',
+      label: 'Hoàn tất',
+      count: counts.COMPLETED,
+      color: '#047857',
+    },
+    {
+      key: 'CANCELLED',
+      label: 'Đã hủy',
+      count: counts.CANCELLED,
+      color: '#b91c1c',
+    },
   ];
 
   const columns = [
@@ -156,17 +198,17 @@ export default function OrdersPage() {
       title: 'Mã đơn',
       dataIndex: 'orderCode',
       key: 'orderCode',
-      render: (code: string) => (
-        <span className="font-semibold text-ink">{code}</span>
-      ),
+      render: (code: string) => <Text strong>{code}</Text>,
     },
     {
       title: 'Người nhận',
       key: 'recipient',
       render: (_: unknown, row: Order) => (
         <div>
-          <div className="font-medium">{row.recipientName}</div>
-          <div className="text-xs text-ink-secondary">{row.recipientPhone}</div>
+          <div>{row.recipientName}</div>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            {row.recipientPhone}
+          </Text>
         </div>
       ),
     },
@@ -176,11 +218,11 @@ export default function OrdersPage() {
       key: 'totalAmount',
       render: (amount: number, row: Order) => (
         <div>
-          <div className="font-tnum font-semibold">
-            {amount.toLocaleString('vi-VN')}đ
-          </div>
-          <div className="text-xs text-ink-secondary">
-            {row.items?.length || 0} sản phẩm
+          <Text strong>{amount.toLocaleString('vi-VN')}đ</Text>
+          <div>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {row.items?.length || 0} sản phẩm
+            </Text>
           </div>
         </div>
       ),
@@ -190,11 +232,9 @@ export default function OrdersPage() {
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => (
-        <span
-          className={`inline-flex rounded px-2 py-0.5 text-xs font-semibold ${statusBadgeClass[status] || ''}`}
-        >
+        <Tag color={statusTagColor[status]}>
           {statusLabels[status] || status}
-        </span>
+        </Tag>
       ),
     },
     {
@@ -207,7 +247,11 @@ export default function OrdersPage() {
       title: 'Thao tác',
       key: 'actions',
       render: (_: unknown, record: Order) => (
-        <Button size="small" onClick={() => handleViewOrder(record)}>
+        <Button
+          size="small"
+          icon={<EyeOutlined />}
+          onClick={() => handleViewOrder(record)}
+        >
           Xem
         </Button>
       ),
@@ -241,40 +285,48 @@ export default function OrdersPage() {
   ];
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-lg border border-line bg-surface-card p-5 shadow-sm">
-        <h1 className="text-2xl font-semibold text-ink">Quản lý đơn hàng</h1>
-        <p className="mt-1 text-sm text-ink-secondary">
+    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+      <Card>
+        <Title level={3} style={{ margin: 0 }}>
+          Quản lý đơn hàng
+        </Title>
+        <Text type="secondary">
           Theo dõi tiến độ xử lý đơn hàng nông sản tươi Vườn Nhà
-        </p>
-      </div>
+        </Text>
+      </Card>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <Row gutter={[12, 12]}>
         {countCards.map((card) => (
-          <button
-            key={card.label}
-            type="button"
-            onClick={() => setStatusFilter(card.key)}
-            className={`rounded-lg border p-3 text-left shadow-sm transition-colors ${
-              statusFilter === card.key
-                ? 'border-primary bg-surface-low'
-                : 'border-line bg-surface-card hover:bg-surface-low'
-            }`}
-          >
-            <div className="text-xs text-ink-secondary">{card.label}</div>
-            <div className={`mt-1 text-xl font-semibold ${card.color}`}>
-              {card.count}
-            </div>
-          </button>
+          <Col key={card.label} xs={12} sm={8} xl={4}>
+            <Card
+              size="small"
+              hoverable
+              onClick={() => setStatusFilter(card.key)}
+              style={{
+                borderColor:
+                  statusFilter === card.key ? '#1B5E20' : undefined,
+                background:
+                  statusFilter === card.key ? '#edf6e7' : undefined,
+                cursor: 'pointer',
+              }}
+            >
+              <Statistic
+                title={card.label}
+                value={card.count}
+                valueStyle={card.color ? { color: card.color } : undefined}
+              />
+            </Card>
+          </Col>
         ))}
-      </div>
+      </Row>
 
-      <div className="rounded-lg border border-line bg-surface-card p-4 shadow-sm">
-        <div className="mb-4 flex flex-wrap gap-2">
+      <Card>
+        <Space wrap style={{ marginBottom: 16 }}>
           <Input.Search
             allowClear
+            prefix={<SearchOutlined />}
             placeholder="Tìm mã đơn, tên, SĐT..."
-            style={{ width: 260 }}
+            style={{ width: 280 }}
             onSearch={setSearch}
           />
           <Select
@@ -288,15 +340,15 @@ export default function OrdersPage() {
               label,
             }))}
           />
-        </div>
+        </Space>
         <Table
           rowKey="id"
           loading={loading}
           columns={columns}
           dataSource={orders}
-          pagination={{ pageSize: 10 }}
+          pagination={{ pageSize: 10, showSizeChanger: true }}
         />
-      </div>
+      </Card>
 
       <Modal
         title="Chi tiết đơn hàng"
@@ -306,17 +358,15 @@ export default function OrdersPage() {
         width={800}
       >
         {selectedOrder && (
-          <div>
+          <Space direction="vertical" size={16} style={{ width: '100%' }}>
             <Descriptions column={2} bordered size="small">
               <Descriptions.Item label="Mã đơn">
                 {selectedOrder.orderCode}
               </Descriptions.Item>
               <Descriptions.Item label="Trạng thái">
-                <span
-                  className={`inline-flex rounded px-2 py-0.5 text-xs font-semibold ${statusBadgeClass[selectedOrder.status] || ''}`}
-                >
+                <Tag color={statusTagColor[selectedOrder.status]}>
                   {statusLabels[selectedOrder.status]}
-                </span>
+                </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="Người nhận">
                 {selectedOrder.recipientName}
@@ -329,28 +379,31 @@ export default function OrdersPage() {
               </Descriptions.Item>
             </Descriptions>
 
-            <h3 className="mb-2 mt-4 font-semibold">Sản phẩm</h3>
-            <div className="mb-4 space-y-2">
-              {selectedOrder.items.map((item, idx) => (
-                <div key={idx} className="flex justify-between text-sm">
-                  <span>
+            <Card size="small" title="Sản phẩm" type="inner">
+              <List
+                size="small"
+                dataSource={selectedOrder.items}
+                renderItem={(item) => (
+                  <List.Item
+                    extra={`${item.subtotal.toLocaleString('vi-VN')}đ`}
+                  >
                     {item.productName} x{item.quantity}
-                  </span>
-                  <span>{item.subtotal.toLocaleString('vi-VN')}đ</span>
-                </div>
-              ))}
-            </div>
+                  </List.Item>
+                )}
+              />
+            </Card>
 
             {getNextActions(selectedOrder.status as OrderStatus).length > 0 && (
-              <>
-                <h3 className="mb-2 font-semibold">Cập nhật trạng thái</h3>
-                <Space className="mb-4">
+              <Card size="small" title="Cập nhật trạng thái" type="inner">
+                <Space wrap>
                   {getNextActions(selectedOrder.status as OrderStatus).map(
                     (status) => (
                       <Button
                         key={status}
                         type={
-                          status === OrderStatus.CANCELLED ? 'default' : 'primary'
+                          status === OrderStatus.CANCELLED
+                            ? 'default'
+                            : 'primary'
                         }
                         danger={status === OrderStatus.CANCELLED}
                         onClick={() =>
@@ -362,22 +415,23 @@ export default function OrdersPage() {
                     ),
                   )}
                 </Space>
-              </>
+              </Card>
             )}
 
-            <h3 className="mb-2 mt-2 font-semibold">Lịch sử trạng thái</h3>
-            <Table
-              size="small"
-              rowKey="id"
-              loading={detailLoading}
-              pagination={false}
-              columns={historyColumns}
-              dataSource={selectedOrder.statusHistory || []}
-              locale={{ emptyText: 'Chưa có lịch sử trạng thái' }}
-            />
-          </div>
+            <Card size="small" title="Lịch sử trạng thái" type="inner">
+              <Table
+                size="small"
+                rowKey="id"
+                loading={detailLoading}
+                pagination={false}
+                columns={historyColumns}
+                dataSource={selectedOrder.statusHistory || []}
+                locale={{ emptyText: 'Chưa có lịch sử trạng thái' }}
+              />
+            </Card>
+          </Space>
         )}
       </Modal>
-    </div>
+    </Space>
   );
 }

@@ -1,24 +1,83 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Dropdown, message } from 'antd';
+import {
+  Layout,
+  Menu,
+  Input,
+  Button,
+  Dropdown,
+  Avatar,
+  Badge,
+  Breadcrumb,
+  Space,
+  Tag,
+  Spin,
+  message,
+} from 'antd';
 import type { MenuProps } from 'antd';
+import {
+  DashboardOutlined,
+  InboxOutlined,
+  ShoppingOutlined,
+  TeamOutlined,
+  AppstoreOutlined,
+  SettingOutlined,
+  PlusOutlined,
+  BellOutlined,
+  SearchOutlined,
+  LogoutOutlined,
+  UserOutlined,
+  SafetyCertificateOutlined,
+} from '@ant-design/icons';
 import api, {
   AdminUser,
   clearAdminSession,
   getStoredAdminUser,
 } from '@/lib/api';
 
+const { Header, Sider, Content } = Layout;
+
 const NAV = [
-  { href: '/dashboard', label: 'Tổng quan', icon: 'dashboard' },
-  { href: '/san-pham', label: 'Quản lý sản phẩm', icon: 'inventory_2' },
-  { href: '/don-hang', label: 'Quản lý đơn hàng', icon: 'receipt_long' },
-  { href: '/khach-hang', label: 'Khách hàng', icon: 'group', stub: true },
-  { href: '/danh-muc', label: 'Danh mục', icon: 'category' },
-  { href: '/cai-dat', label: 'Cài đặt', icon: 'settings', stub: true },
+  { key: '/dashboard', label: 'Tổng quan', icon: <DashboardOutlined /> },
+  { key: '/san-pham', label: 'Quản lý sản phẩm', icon: <InboxOutlined /> },
+  { key: '/don-hang', label: 'Quản lý đơn hàng', icon: <ShoppingOutlined /> },
+  {
+    key: '/khach-hang',
+    label: (
+      <span className="flex items-center justify-between gap-2">
+        Khách hàng
+        <Tag style={{ marginInlineEnd: 0, fontSize: 10, lineHeight: '16px' }}>
+          Soon
+        </Tag>
+      </span>
+    ),
+    icon: <TeamOutlined />,
+  },
+  { key: '/danh-muc', label: 'Danh mục', icon: <AppstoreOutlined /> },
+  {
+    key: '/cai-dat',
+    label: (
+      <span className="flex items-center justify-between gap-2">
+        Cài đặt
+        <Tag style={{ marginInlineEnd: 0, fontSize: 10, lineHeight: '16px' }}>
+          Soon
+        </Tag>
+      </span>
+    ),
+    icon: <SettingOutlined />,
+  },
 ];
+
+const BREADCRUMB_LABEL: Record<string, string> = {
+  '/dashboard': 'Tổng quan',
+  '/san-pham': 'Quản lý sản phẩm',
+  '/don-hang': 'Quản lý đơn hàng',
+  '/khach-hang': 'Khách hàng',
+  '/danh-muc': 'Danh mục',
+  '/cai-dat': 'Cài đặt',
+};
 
 interface Props {
   children: React.ReactNode;
@@ -29,6 +88,7 @@ export function AdminShell({ children }: Props) {
   const router = useRouter();
   const [user, setUser] = useState<AdminUser | null>(null);
   const [ready, setReady] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('admin_token');
@@ -62,9 +122,25 @@ export function AdminShell({ children }: Props) {
     router.push('/login');
   };
 
+  const selectedKey = useMemo(() => {
+    const match = NAV.find((item) => pathname.startsWith(item.key));
+    return match?.key || '/dashboard';
+  }, [pathname]);
+
+  const breadcrumbLabel = BREADCRUMB_LABEL[selectedKey] || 'Tổng quan';
+
   const userMenu: MenuProps['items'] = [
     {
+      key: 'profile',
+      icon: <UserOutlined />,
+      label: user?.email || 'Tài khoản',
+      disabled: true,
+    },
+    { type: 'divider' },
+    {
       key: 'logout',
+      icon: <LogoutOutlined />,
+      danger: true,
       label: 'Đăng xuất',
       onClick: () => {
         void handleLogout();
@@ -74,149 +150,176 @@ export function AdminShell({ children }: Props) {
 
   if (!ready) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-surface text-ink-secondary">
-        Đang tải...
+      <div className="flex min-h-screen items-center justify-center bg-[#F4F6F4]">
+        <Spin size="large" tip="Đang tải..." />
       </div>
     );
   }
 
-  const breadcrumb =
-    NAV.find((item) => pathname.startsWith(item.href))?.label || 'Tổng quan';
-
   return (
-    <div className="min-h-screen bg-surface font-sans text-ink">
-      <aside className="fixed bottom-0 left-0 top-0 z-50 flex w-60 flex-col border-r border-line bg-surface-card">
-        <div className="flex h-16 items-center gap-3 border-b border-line px-4">
-          <span className="grid h-8 w-8 place-items-center rounded-md bg-primary text-sm font-bold text-white">
+    <Layout style={{ minHeight: '100vh' }}>
+      <Sider
+        collapsible
+        collapsed={collapsed}
+        onCollapse={setCollapsed}
+        width={240}
+        theme="light"
+        style={{
+          borderRight: '1px solid #E8ECE8',
+          position: 'fixed',
+          left: 0,
+          top: 0,
+          bottom: 0,
+          zIndex: 50,
+          overflow: 'auto',
+        }}
+      >
+        <div
+          style={{
+            height: 64,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: collapsed ? '0 16px' : '0 20px',
+            borderBottom: '1px solid #E8ECE8',
+          }}
+        >
+          <Avatar
+            shape="square"
+            size={32}
+            style={{ background: '#1B5E20', fontWeight: 700, flexShrink: 0 }}
+          >
             VN
-          </span>
-          <div className="flex flex-col">
-            <span className="text-base font-semibold leading-tight text-primary">
-              Vườn Nhà
-            </span>
-            <span className="text-xs font-medium text-ink-secondary">
-              Cổng Vận Hành
-            </span>
-          </div>
+          </Avatar>
+          {!collapsed && (
+            <div>
+              <div style={{ fontWeight: 600, color: '#1B5E20', lineHeight: 1.2 }}>
+                Vườn Nhà
+              </div>
+              <div style={{ fontSize: 12, color: '#4B5563' }}>Cổng Vận Hành</div>
+            </div>
+          )}
         </div>
 
-        <div className="px-4 pb-1 pt-3">
-          <div className="px-2 text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
-            Hệ thống
-          </div>
+        <div style={{ padding: collapsed ? '12px 8px 4px' : '12px 16px 4px' }}>
+          {!collapsed && (
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: '0.04em',
+                color: '#9CA3AF',
+                textTransform: 'uppercase',
+                marginBottom: 4,
+              }}
+            >
+              Hệ thống
+            </div>
+          )}
         </div>
 
-        <nav className="flex-1 space-y-0.5 px-2">
-          {NAV.map((item) => {
-            const active = pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-colors ${
-                  active
-                    ? 'border-r-2 border-primary bg-surface-low font-semibold text-primary'
-                    : 'font-medium text-ink-secondary hover:bg-surface-container hover:text-ink'
-                }`}
-              >
-                <span className="material-symbols-outlined">{item.icon}</span>
-                <span>{item.label}</span>
-                {item.stub && (
-                  <span className="ml-auto rounded bg-surface-container px-1.5 py-0.5 text-[10px] text-ink-muted">
-                    Soon
-                  </span>
-                )}
-              </Link>
-            );
-          })}
-        </nav>
+        <Menu
+          mode="inline"
+          selectedKeys={[selectedKey]}
+          items={NAV}
+          onClick={({ key }) => router.push(key)}
+          style={{ borderInlineEnd: 0 }}
+        />
 
-        <div className="border-t border-line p-3">
-          <div className="flex items-center gap-2 rounded-md bg-surface-low p-2">
-            <span className="material-symbols-outlined text-secondary">
-              verified
-            </span>
-            <div className="flex flex-col">
-              <span className="text-xs font-semibold text-secondary">
-                VietGAP Verified
-              </span>
-              <span className="text-[11px] text-ink-muted">
-                Chuỗi cung ứng sạch
-              </span>
+        {!collapsed && (
+          <div style={{ padding: 12, marginTop: 'auto' }}>
+            <div
+              style={{
+                display: 'flex',
+                gap: 8,
+                alignItems: 'center',
+                padding: 10,
+                borderRadius: 6,
+                background: '#edf6e7',
+              }}
+            >
+              <SafetyCertificateOutlined style={{ color: '#006e1c' }} />
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#006e1c' }}>
+                  VietGAP Verified
+                </div>
+                <div style={{ fontSize: 11, color: '#9CA3AF' }}>
+                  Chuỗi cung ứng sạch
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </aside>
+        )}
+      </Sider>
 
-      <div className="pl-60">
-        <header className="fixed left-60 right-0 top-0 z-40 flex h-16 items-center justify-between border-b border-line bg-surface-card/95 px-6 backdrop-blur-md">
-          <div className="flex items-center gap-6">
-            <div className="hidden items-center gap-1 text-xs text-ink-secondary sm:flex">
-              <span>Trang chủ</span>
-              <span className="material-symbols-outlined text-base text-ink-muted">
-                chevron_right
-              </span>
-              <span className="font-semibold text-ink">{breadcrumb}</span>
-            </div>
-            <div className="relative hidden w-72 md:block">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-lg text-ink-muted">
-                search
-              </span>
-              <input
-                type="text"
-                placeholder="Tìm kiếm (Mã ĐH, Nông sản...)"
-                className="h-9 w-full rounded-md border border-line-control bg-surface-low py-1.5 pl-9 pr-12 text-sm text-ink outline-none placeholder:text-ink-muted focus:border-secondary"
-              />
-              <kbd className="absolute right-2 top-1/2 -translate-y-1/2 rounded border border-line-control bg-surface-container px-1.5 py-0.5 text-[10px] text-ink-secondary">
-                ⌘K
-              </kbd>
-            </div>
-          </div>
+      <Layout style={{ marginLeft: collapsed ? 80 : 240, transition: 'all 0.2s' }}>
+        <Header
+          style={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 40,
+            height: 64,
+            padding: '0 24px',
+            background: 'rgba(255,255,255,0.96)',
+            borderBottom: '1px solid #E8ECE8',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            backdropFilter: 'blur(8px)',
+          }}
+        >
+          <Space size="large" wrap>
+            <Breadcrumb
+              items={[
+                { title: 'Trang chủ' },
+                { title: breadcrumbLabel },
+              ]}
+            />
+            <Input
+              allowClear
+              prefix={<SearchOutlined style={{ color: '#9CA3AF' }} />}
+              placeholder="Tìm kiếm (Mã ĐH, Nông sản...)"
+              style={{ width: 280 }}
+            />
+          </Space>
 
-          <div className="flex items-center gap-4">
-            <button
-              type="button"
+          <Space size="middle">
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
               onClick={() => router.push('/don-hang')}
-              className="inline-flex h-9 items-center gap-1 rounded-md bg-primary px-3 text-sm font-medium text-white transition-colors hover:bg-primary-hover"
             >
-              <span className="material-symbols-outlined text-lg">add</span>
               Tạo đơn mới
-            </button>
-            <button
-              type="button"
-              className="relative grid h-9 w-9 place-items-center rounded-md text-ink-secondary hover:bg-surface-container"
-              aria-label="Thông báo"
-            >
-              <span className="material-symbols-outlined">notifications</span>
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-error ring-2 ring-white" />
-            </button>
-            <div className="h-6 w-px bg-line" />
+            </Button>
+            <Badge dot>
+              <Button
+                type="text"
+                icon={<BellOutlined style={{ fontSize: 18 }} />}
+                aria-label="Thông báo"
+              />
+            </Badge>
             <Dropdown menu={{ items: userMenu }} placement="bottomRight">
-              <button
-                type="button"
-                className="flex items-center gap-3 rounded-md px-1 py-1 hover:bg-surface-low"
-              >
-                <span className="grid h-8 w-8 place-items-center rounded-full bg-primary text-xs font-semibold text-white">
+              <Space style={{ cursor: 'pointer' }} size={10}>
+                <Avatar style={{ background: '#1B5E20' }}>
                   {(user?.name || 'A').charAt(0).toUpperCase()}
-                </span>
-                <div className="hidden text-left lg:block">
-                  <div className="text-sm font-semibold leading-tight text-ink">
+                </Avatar>
+                <div className="hidden lg:block" style={{ lineHeight: 1.2 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>
                     {user?.name || 'Admin'}
                   </div>
-                  <div className="text-xs leading-tight text-ink-secondary">
+                  <div style={{ fontSize: 12, color: '#4B5563' }}>
                     Quản trị viên vận hành
                   </div>
                 </div>
-                <span className="material-symbols-outlined hidden text-lg text-ink-muted sm:block">
-                  expand_more
-                </span>
-              </button>
+              </Space>
             </Dropdown>
-          </div>
-        </header>
+          </Space>
+        </Header>
 
-        <main className="min-h-screen bg-surface px-6 pb-8 pt-20">{children}</main>
-      </div>
-    </div>
+        <Content style={{ padding: 24, background: '#F4F6F4', minHeight: 'calc(100vh - 64px)' }}>
+          {children}
+        </Content>
+      </Layout>
+    </Layout>
   );
 }

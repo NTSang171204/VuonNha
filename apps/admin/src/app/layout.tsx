@@ -39,8 +39,29 @@ export default function RootLayout({
             theme={{
               token: {
                 colorPrimary: '#1B5E20',
-                borderRadius: 4,
+                colorSuccess: '#047857',
+                colorWarning: '#d97706',
+                colorError: '#b91c1c',
+                borderRadius: 6,
                 fontFamily: '"Be Vietnam Pro", system-ui, sans-serif',
+                colorBgLayout: '#F4F6F4',
+              },
+              components: {
+                Layout: {
+                  headerBg: '#ffffff',
+                  siderBg: '#ffffff',
+                  bodyBg: '#F4F6F4',
+                },
+                Menu: {
+                  itemSelectedBg: '#edf6e7',
+                  itemSelectedColor: '#1B5E20',
+                },
+                Button: {
+                  primaryShadow: 'none',
+                },
+                Card: {
+                  borderRadiusLG: 8,
+                },
               },
             }}
           >

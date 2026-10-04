@@ -2,9 +2,22 @@
 
 import { useEffect, useState } from 'react';
 import {
-  Table, Button, Modal, Form, Input, message, Popconfirm, Space,
+  Table,
+  Button,
+  Modal,
+  Form,
+  Input,
+  message,
+  Popconfirm,
+  Space,
+  Card,
+  Typography,
+  Tag,
 } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import api from '@/lib/api';
+
+const { Title, Text } = Typography;
 
 interface Category {
   id: string;
@@ -71,22 +84,20 @@ export default function CategoriesPage() {
       title: 'Tên danh mục',
       dataIndex: 'name',
       key: 'name',
-      render: (name: string) => (
-        <span className="font-medium text-ink">{name}</span>
-      ),
+      render: (name: string) => <Text strong>{name}</Text>,
     },
     {
       title: 'Mã',
       dataIndex: 'id',
       key: 'id',
-      render: (id: string) => (
-        <span className="font-tnum text-xs text-ink-muted">{id}</span>
-      ),
+      render: (id: string) => <Tag>{id}</Tag>,
     },
     {
       title: 'Số sản phẩm',
       key: 'count',
-      render: (_: unknown, row: Category) => row._count?.products ?? 0,
+      render: (_: unknown, row: Category) => (
+        <Tag color="blue">{row._count?.products ?? 0}</Tag>
+      ),
     },
     {
       title: 'Thao tác',
@@ -95,6 +106,7 @@ export default function CategoriesPage() {
         <Space>
           <Button
             size="small"
+            icon={<EditOutlined />}
             onClick={() => {
               setEditing(row);
               form.setFieldsValue({ name: row.name });
@@ -107,7 +119,7 @@ export default function CategoriesPage() {
             title="Xóa danh mục này?"
             onConfirm={() => handleDelete(row.id)}
           >
-            <Button size="small" danger>
+            <Button size="small" danger icon={<DeleteOutlined />}>
               Xóa
             </Button>
           </Popconfirm>
@@ -117,27 +129,32 @@ export default function CategoriesPage() {
   ];
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-3 rounded-lg border border-line bg-surface-card p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-ink">Danh mục</h1>
-          <p className="mt-1 text-sm text-ink-secondary">
-            Quản lý nhóm nông sản trên cửa hàng Vườn Nhà
-          </p>
+    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+      <Card>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <Title level={3} style={{ margin: 0 }}>
+              Danh mục
+            </Title>
+            <Text type="secondary">
+              Quản lý nhóm nông sản trên cửa hàng Vườn Nhà
+            </Text>
+          </div>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              setEditing(null);
+              form.resetFields();
+              setModalOpen(true);
+            }}
+          >
+            Thêm danh mục
+          </Button>
         </div>
-        <Button
-          type="primary"
-          onClick={() => {
-            setEditing(null);
-            form.resetFields();
-            setModalOpen(true);
-          }}
-        >
-          + Thêm danh mục
-        </Button>
-      </div>
+      </Card>
 
-      <div className="rounded-lg border border-line bg-surface-card p-4 shadow-sm">
+      <Card>
         <Table
           rowKey="id"
           loading={loading}
@@ -145,7 +162,7 @@ export default function CategoriesPage() {
           dataSource={categories}
           pagination={false}
         />
-      </div>
+      </Card>
 
       <Modal
         title={editing ? 'Sửa danh mục' : 'Thêm danh mục'}
@@ -153,6 +170,8 @@ export default function CategoriesPage() {
         onCancel={() => setModalOpen(false)}
         onOk={() => form.submit()}
         destroyOnClose
+        okText="Lưu"
+        cancelText="Hủy"
       >
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
           <Form.Item
@@ -164,6 +183,6 @@ export default function CategoriesPage() {
           </Form.Item>
         </Form>
       </Modal>
-    </div>
+    </Space>
   );
 }

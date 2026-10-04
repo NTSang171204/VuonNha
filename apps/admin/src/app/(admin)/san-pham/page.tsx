@@ -2,10 +2,37 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Table, Button, Space, Modal, Form, Input, InputNumber, Select, message, Popconfirm, Tag,
+  Table,
+  Button,
+  Space,
+  Modal,
+  Form,
+  Input,
+  InputNumber,
+  Select,
+  message,
+  Popconfirm,
+  Tag,
+  Card,
+  Row,
+  Col,
+  Statistic,
+  Typography,
+  Avatar,
 } from 'antd';
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  InboxOutlined,
+  CheckCircleOutlined,
+  WarningOutlined,
+  StopOutlined,
+} from '@ant-design/icons';
 import api from '@/lib/api';
 import { UNIT_LABELS } from '@/lib/status';
+
+const { Title, Text } = Typography;
 
 interface Product {
   id: string;
@@ -53,7 +80,10 @@ export default function ProductsPage() {
   };
 
   useEffect(() => {
-    api.get('/categories').then(({ data }) => setCategories(data || [])).catch(() => {});
+    api
+      .get('/categories')
+      .then(({ data }) => setCategories(data || []))
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -64,7 +94,9 @@ export default function ProductsPage() {
     const total = products.length;
     const active = products.filter((p) => p.status === 'ACTIVE').length;
     const low = products.filter((p) => p.stock > 0 && p.stock < 10).length;
-    const out = products.filter((p) => p.stock === 0 || p.status === 'INACTIVE').length;
+    const out = products.filter(
+      (p) => p.stock === 0 || p.status === 'INACTIVE',
+    ).length;
     return { total, active, low, out };
   }, [products]);
 
@@ -101,22 +133,22 @@ export default function ProductsPage() {
       title: 'Thông tin nông sản',
       key: 'info',
       render: (_: unknown, row: Product) => (
-        <div className="flex items-center gap-3">
-          <div className="h-12 w-12 overflow-hidden rounded border border-line bg-surface-low">
-            {row.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={row.imageUrl} alt={row.name} className="h-full w-full object-cover" />
-            ) : (
-              <div className="grid h-full place-items-center text-sm font-semibold text-ink-muted">
-                {row.name.charAt(0)}
-              </div>
-            )}
-          </div>
+        <Space>
+          <Avatar
+            shape="square"
+            size={48}
+            src={row.imageUrl}
+            style={{ background: '#edf6e7', color: '#1B5E20' }}
+          >
+            {row.name.charAt(0)}
+          </Avatar>
           <div>
-            <div className="font-medium text-ink">{row.name}</div>
-            <div className="font-tnum text-xs text-ink-muted">SKU: {row.id}</div>
+            <div style={{ fontWeight: 500 }}>{row.name}</div>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              SKU: {row.id}
+            </Text>
           </div>
-        </div>
+        </Space>
       ),
     },
     {
@@ -128,9 +160,10 @@ export default function ProductsPage() {
       title: 'Đơn giá',
       key: 'price',
       render: (_: unknown, row: Product) => (
-        <span className="font-tnum font-semibold">
-          {row.price.toLocaleString('vi-VN')}đ / {UNIT_LABELS[row.unit] || row.unit}
-        </span>
+        <Text strong>
+          {row.price.toLocaleString('vi-VN')}đ /{' '}
+          {UNIT_LABELS[row.unit] || row.unit}
+        </Text>
       ),
     },
     {
@@ -138,9 +171,9 @@ export default function ProductsPage() {
       dataIndex: 'stock',
       key: 'stock',
       render: (stock: number) => (
-        <span className={`font-tnum ${stock === 0 ? 'text-error' : stock < 10 ? 'text-amber-600' : ''}`}>
+        <Text type={stock === 0 ? 'danger' : stock < 10 ? 'warning' : undefined}>
           {stock}
-        </span>
+        </Text>
       ),
     },
     {
@@ -160,16 +193,20 @@ export default function ProductsPage() {
         <Space>
           <Button
             size="small"
+            icon={<EditOutlined />}
             onClick={() => {
               setEditing(row);
               form.setFieldsValue(row);
               setModalOpen(true);
             }}
           >
-            Chỉnh sửa
+            Sửa
           </Button>
-          <Popconfirm title="Ngừng bán sản phẩm?" onConfirm={() => handleDelete(row.id)}>
-            <Button size="small" danger>
+          <Popconfirm
+            title="Ngừng bán sản phẩm?"
+            onConfirm={() => handleDelete(row.id)}
+          >
+            <Button size="small" danger icon={<DeleteOutlined />}>
               Xóa
             </Button>
           </Popconfirm>
@@ -179,40 +216,79 @@ export default function ProductsPage() {
   ];
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-4 rounded-lg border border-line bg-surface-card p-5 shadow-sm md:flex-row md:items-center md:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-semibold text-ink">Quản lý sản phẩm</h1>
-            <span className="rounded-full bg-status-completed-bg px-2 py-0.5 text-[11px] font-semibold text-status-completed-text">
-              Kho trực tuyến
-            </span>
+    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+      <Card>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <Space align="center">
+              <Title level={3} style={{ margin: 0 }}>
+                Quản lý sản phẩm
+              </Title>
+              <Tag color="success">Kho trực tuyến</Tag>
+            </Space>
+            <Text type="secondary">
+              Quản lý danh mục nông sản, tồn kho và giá bán Vườn Nhà
+            </Text>
           </div>
-          <p className="mt-1 text-sm text-ink-secondary">
-            Quản lý danh mục nông sản, tồn kho và giá bán Vườn Nhà
-          </p>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              setEditing(null);
+              form.resetFields();
+              setModalOpen(true);
+            }}
+          >
+            Thêm sản phẩm
+          </Button>
         </div>
-        <Button
-          type="primary"
-          onClick={() => {
-            setEditing(null);
-            form.resetFields();
-            setModalOpen(true);
-          }}
-        >
-          + Thêm sản phẩm
-        </Button>
-      </div>
+      </Card>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Stat label="Tổng sản phẩm" value={`${stats.total} SKU`} />
-        <Stat label="Đang kinh doanh" value={String(stats.active)} />
-        <Stat label="Sắp hết hàng" value={String(stats.low)} warn />
-        <Stat label="Hết hàng / tạm dừng" value={String(stats.out)} danger />
-      </div>
+      <Row gutter={[16, 16]}>
+        <Col xs={12} md={6}>
+          <Card>
+            <Statistic
+              title="Tổng sản phẩm"
+              value={stats.total}
+              suffix="SKU"
+              prefix={<InboxOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} md={6}>
+          <Card>
+            <Statistic
+              title="Đang kinh doanh"
+              value={stats.active}
+              prefix={<CheckCircleOutlined />}
+              valueStyle={{ color: '#047857' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} md={6}>
+          <Card>
+            <Statistic
+              title="Sắp hết hàng"
+              value={stats.low}
+              prefix={<WarningOutlined />}
+              valueStyle={{ color: '#d97706' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={12} md={6}>
+          <Card>
+            <Statistic
+              title="Hết hàng / tạm dừng"
+              value={stats.out}
+              prefix={<StopOutlined />}
+              valueStyle={{ color: '#cf1322' }}
+            />
+          </Card>
+        </Col>
+      </Row>
 
-      <div className="rounded-lg border border-line bg-surface-card p-4 shadow-sm">
-        <div className="mb-4 flex flex-wrap gap-2">
+      <Card>
+        <Space wrap style={{ marginBottom: 16 }}>
           <Input.Search
             allowClear
             placeholder="Tìm tên sản phẩm..."
@@ -238,7 +314,7 @@ export default function ProductsPage() {
               { value: 'INACTIVE', label: 'Ngừng bán' },
             ]}
           />
-        </div>
+        </Space>
         <Table
           rowKey="id"
           loading={loading}
@@ -246,7 +322,7 @@ export default function ProductsPage() {
           dataSource={products}
           pagination={{ pageSize: 8, showSizeChanger: true }}
         />
-      </div>
+      </Card>
 
       <Modal
         title={editing ? 'Sửa sản phẩm' : 'Thêm sản phẩm'}
@@ -254,12 +330,22 @@ export default function ProductsPage() {
         onCancel={() => setModalOpen(false)}
         onOk={() => form.submit()}
         destroyOnClose
+        okText="Lưu"
+        cancelText="Hủy"
       >
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
-          <Form.Item name="name" label="Tên sản phẩm" rules={[{ required: true }]}>
+          <Form.Item
+            name="name"
+            label="Tên sản phẩm"
+            rules={[{ required: true }]}
+          >
             <Input />
           </Form.Item>
-          <Form.Item name="categoryId" label="Danh mục" rules={[{ required: true }]}>
+          <Form.Item
+            name="categoryId"
+            label="Danh mục"
+            rules={[{ required: true }]}
+          >
             <Select
               options={categories.map((c) => ({ value: c.id, label: c.name }))}
             />
@@ -298,31 +384,6 @@ export default function ProductsPage() {
           )}
         </Form>
       </Modal>
-    </div>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  warn,
-  danger,
-}: {
-  label: string;
-  value: string;
-  warn?: boolean;
-  danger?: boolean;
-}) {
-  return (
-    <div className="rounded-lg border border-line bg-surface-card p-4 shadow-sm">
-      <div className="text-xs text-ink-secondary">{label}</div>
-      <div
-        className={`mt-1 text-xl font-semibold ${
-          danger ? 'text-error' : warn ? 'text-amber-600' : 'text-ink'
-        }`}
-      >
-        {value}
-      </div>
-    </div>
+    </Space>
   );
 }
