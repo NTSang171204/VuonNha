@@ -1,4 +1,7 @@
-const API_URL = process.env.API_URL || 'http://localhost:3000';
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  process.env.API_URL ||
+  'http://localhost:3000';
 
 export interface Product {
   id: string;
@@ -104,6 +107,21 @@ export async function trackOrder(
   );
   if (!res.ok) return null;
   return res.json();
+}
+
+export async function cancelTrackedOrder(
+  orderCode: string,
+  phone: string,
+): Promise<Order> {
+  const res = await fetch(
+    `${API_URL}/orders/track/${encodeURIComponent(orderCode)}/cancel`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone }),
+    },
+  );
+  return parseJson<Order>(res);
 }
 
 export async function createOrder(data: unknown): Promise<Order> {

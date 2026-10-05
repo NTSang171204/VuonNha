@@ -105,6 +105,12 @@ export function CheckoutPage() {
   }, [items, form.shippingProvince, appliedCoupon, total]);
 
   const handleApplyCoupon = async (code: string) => {
+    const normalized = code.trim().toUpperCase();
+    if (!normalized) {
+      setCouponError('Vui lòng nhập mã giảm giá');
+      return;
+    }
+
     setCouponLoading(true);
     setCouponError('');
     try {
@@ -114,8 +120,15 @@ export function CheckoutPage() {
           quantity: Math.max(1, Math.round(i.quantity)),
         })),
         shippingProvince: form.shippingProvince || undefined,
-        couponCode: code,
+        couponCode: normalized,
       });
+
+      if (!result.couponCode || !(result.discountAmount > 0)) {
+        throw new Error(
+          'Mã giảm giá không hợp lệ hoặc không áp dụng được cho giỏ hàng này',
+        );
+      }
+
       setAppliedCoupon(result.couponCode);
       setOrderSummary({
         subtotal: result.subtotal,
@@ -126,7 +139,7 @@ export function CheckoutPage() {
       setDiscountLabel(
         result.discount
           ? `Giảm ${result.discount.percentOff}% cho ${result.discount.productName}`
-          : null,
+          : `Đã áp dụng mã ${result.couponCode}`,
       );
     } catch (err) {
       setAppliedCoupon(null);
@@ -237,9 +250,8 @@ export function CheckoutPage() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-8 lg:grid-cols-2">
-      {/* Left Column: Customer Info */}
-      <div className="space-y-6">
+    <div className="grid gap-8 lg:grid-cols-2">
+      <form onSubmit={handleSubmit} className="space-y-6">
         {/* Liên hệ */}
         <div className="rounded-xl border border-line bg-white p-6">
           <h2 className="mb-4 text-lg font-bold text-ink">Liên hệ</h2>
@@ -370,10 +382,9 @@ export function CheckoutPage() {
         {error && (
           <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</p>
         )}
-      </div>
+      </form>
 
-      {/* Right Column: Order Summary */}
-      <div className="h-fit">
+      <div className="h-fit lg:sticky lg:top-6">
         <OrderSummary
           subtotal={orderSummary.subtotal}
           shippingFee={orderSummary.shippingFee}
@@ -388,6 +399,6 @@ export function CheckoutPage() {
           onClearCoupon={handleClearCoupon}
         />
       </div>
-    </form>
+    </div>
   );
 }

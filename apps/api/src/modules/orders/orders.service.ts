@@ -109,6 +109,11 @@ export class OrdersService {
     return order;
   }
 
+  async cancelByTracking(orderCode: string, phone: string) {
+    const order = await this.trackOrder(orderCode, phone);
+    return this.cancel(order.id, undefined, 'Khách hủy đơn');
+  }
+
   async validateOrder(
     items: { productId: string; quantity: number }[],
     shippingProvince?: string,
@@ -501,7 +506,7 @@ export class OrdersService {
     });
   }
 
-  async cancel(id: string, changedById?: string) {
+  async cancel(id: string, changedById?: string, note = 'Hủy đơn và hoàn kho') {
     const order = await this.findOne(id);
     const current = order.status as OrderStatus;
 
@@ -538,7 +543,7 @@ export class OrdersService {
         fromStatus: current,
         toStatus: OrderStatus.CANCELLED,
         changedById: changedById ?? null,
-        note: 'Hủy đơn và hoàn kho',
+        note,
       });
 
       return tx.order.update({

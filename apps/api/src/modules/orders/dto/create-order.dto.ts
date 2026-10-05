@@ -107,3 +107,10 @@ export class UpdateOrderStatusDto {
   status!: string;
 }
 
+export class CancelTrackedOrderDto {
+  @IsString()
+  @MinLength(10)
+  phone!: string;
+}
+
+

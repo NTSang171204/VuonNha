@@ -17,6 +17,7 @@ import { CurrentUser } from '../auth/current-user.decorator';
 import { Role, OrderStatus } from '@farm/types';
 import {
   AdjustOrderItemsDto,
+  CancelTrackedOrderDto,
   CreateOrderDto,
   UpdateOrderStatusDto,
   ValidateOrderDto,
@@ -44,6 +45,14 @@ export class OrdersController {
     @Query('phone') phone: string,
   ) {
     return this.ordersService.trackOrder(orderCode, phone);
+  }
+
+  @Put('track/:orderCode/cancel')
+  cancelByTracking(
+    @Param('orderCode') orderCode: string,
+    @Body() body: CancelTrackedOrderDto,
+  ) {
+    return this.ordersService.cancelByTracking(orderCode, body.phone);
   }
 
   @Get(':id')

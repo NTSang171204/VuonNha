@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { trackOrder, Order } from '@/lib/api';
+import { trackOrder, cancelTrackedOrder, Order } from '@/lib/api';
 import { useOrderHistoryStore } from '@/store/order-history';
 import { Package, Truck, CheckCircle, XCircle, Clock } from 'lucide-react';
 
@@ -14,6 +14,8 @@ const statusConfig: Record<string, { icon: React.ReactNode; color: string; label
   CANCELLED: { icon: <XCircle className="h-5 w-5" />, color: 'text-red-500', label: 'Đã hủy' },
 };
 
+const CANCELLABLE = new Set(['PENDING', 'CONFIRMED']);
+
 export function TrackingPage() {
   const searchParams = useSearchParams();
   const recentOrders = useOrderHistoryStore((s) => s.orders);
@@ -22,10 +24,13 @@ export function TrackingPage() {
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState('');
 
   const runTrack = async (code: string, phoneValue: string) => {
     setLoading(true);
     setError('');
+    setCancelError('');
     setOrder(null);
     try {
       const result = await trackOrder(code.trim(), phoneValue.trim());
@@ -63,6 +68,32 @@ export function TrackingPage() {
     setPhone(phoneValue);
     void runTrack(code, phoneValue);
   };
+
+  const handleCancel = async () => {
+    if (!order) return;
+    const confirmed = window.confirm(
+      `Bạn chắc chắn muốn hủy đơn ${order.orderCode}?`,
+    );
+    if (!confirmed) return;
+
+    setCancelling(true);
+    setCancelError('');
+    try {
+      const updated = await cancelTrackedOrder(
+        order.orderCode,
+        phone.trim() || order.recipientPhone,
+      );
+      setOrder(updated);
+    } catch (err) {
+      setCancelError(
+        err instanceof Error ? err.message : 'Không thể hủy đơn hàng',
+      );
+    } finally {
+      setCancelling(false);
+    }
+  };
+
+  const canCancel = order ? CANCELLABLE.has(order.status) : false;
 
   return (
     <div>
@@ -141,7 +172,7 @@ export function TrackingPage() {
             </div>
           </div>
 
-          <div>
+          <div className="mb-4">
             <h3 className="mb-2 font-medium">Sản phẩm</h3>
             <div className="space-y-2">
               {order.items?.map((item) => {
@@ -179,6 +210,26 @@ export function TrackingPage() {
               })}
             </div>
           </div>
+
+          {canCancel ? (
+            <div className="border-t pt-4">
+              <button
+                type="button"
+                disabled={cancelling}
+                onClick={() => void handleCancel()}
+                className="w-full rounded-xl border border-red-200 bg-red-50 py-3 font-semibold text-red-600 transition-colors hover:bg-red-100 disabled:opacity-50"
+              >
+                {cancelling ? 'Đang hủy...' : 'Hủy đơn hàng'}
+              </button>
+              {cancelError && (
+                <p className="mt-2 text-sm text-red-600">{cancelError}</p>
+              )}
+            </div>
+          ) : order.status === 'DELIVERING' || order.status === 'COMPLETED' ? (
+            <p className="border-t pt-4 text-sm text-muted">
+              Không thể hủy khi đơn đang giao hoặc đã hoàn tất.
+            </p>
+          ) : null}
         </div>
       )}
     </div>

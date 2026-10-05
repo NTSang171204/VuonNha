@@ -13,7 +13,7 @@ interface Props {
   discountLabel?: string | null;
   couponLoading?: boolean;
   couponError?: string;
-  onApplyCoupon: (code: string) => void;
+  onApplyCoupon: (code: string) => void | Promise<void>;
   onClearCoupon: () => void;
 }
 
@@ -38,6 +38,12 @@ export function OrderSummary({
 }: Props) {
   const items = useCartStore((s) => s.items);
   const [couponCode, setCouponCode] = useState('');
+
+  const apply = () => {
+    const code = couponCode.trim().toUpperCase();
+    if (!code || couponLoading || appliedCoupon) return;
+    void onApplyCoupon(code);
+  };
 
   return (
     <div className="rounded-xl border border-line bg-white p-6">
@@ -87,8 +93,15 @@ export function OrderSummary({
           placeholder="Mã giảm giá"
           value={appliedCoupon || couponCode}
           disabled={!!appliedCoupon || couponLoading}
-          onChange={(e) => setCouponCode(e.target.value)}
-          className="flex-1 rounded-lg border border-line bg-white px-4 py-2.5 text-sm text-ink outline-none focus:border-primary disabled:bg-surface"
+          onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              e.stopPropagation();
+              apply();
+            }
+          }}
+          className="flex-1 rounded-lg border border-line bg-white px-4 py-2.5 text-sm uppercase text-ink outline-none focus:border-primary disabled:bg-surface"
         />
         {appliedCoupon ? (
           <button
@@ -105,10 +118,14 @@ export function OrderSummary({
           <button
             type="button"
             disabled={couponLoading || !couponCode.trim()}
-            onClick={() => onApplyCoupon(couponCode.trim())}
-            className="rounded-lg border border-line bg-white px-4 py-2.5 text-sm font-medium text-ink hover:bg-gray-50 disabled:opacity-50"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              apply();
+            }}
+            className="rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-dark disabled:cursor-not-allowed disabled:bg-gray-300"
           >
-            {couponLoading ? '...' : 'Áp dụng'}
+            {couponLoading ? 'Đang áp dụng...' : 'Áp dụng'}
           </button>
         )}
       </div>
@@ -116,7 +133,7 @@ export function OrderSummary({
         <p className="mb-3 text-sm text-red-600">{couponError}</p>
       )}
       {appliedCoupon && discountLabel && (
-        <p className="mb-3 text-sm text-primary">{discountLabel}</p>
+        <p className="mb-3 text-sm font-medium text-primary">{discountLabel}</p>
       )}
 
       <div className="space-y-2 border-t border-line pt-4">
