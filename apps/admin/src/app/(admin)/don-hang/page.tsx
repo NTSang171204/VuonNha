@@ -10,6 +10,7 @@ import {
   message,
   Select,
   Input,
+  InputNumber,
   Card,
   Row,
   Col,
@@ -18,10 +19,10 @@ import {
   Typography,
   List,
 } from 'antd';
-import { EyeOutlined, SearchOutlined } from '@ant-design/icons';
+import { EyeOutlined, SearchOutlined, SaveOutlined } from '@ant-design/icons';
 import api from '@/lib/api';
 import { OrderStatus } from '@farm/types';
-import { statusLabels, statusTagColor } from '@/lib/status';
+import { statusLabels, statusTagColor, UNIT_LABELS } from '@/lib/status';
 
 const { Title, Text } = Typography;
 
@@ -29,8 +30,19 @@ interface StatusHistoryItem {
   id: string;
   fromStatus: string | null;
   toStatus: string;
+  note?: string | null;
   createdAt: string;
   changedBy?: { id: string; name: string; email: string } | null;
+}
+
+interface OrderItem {
+  id: string;
+  productName: string;
+  unitPrice: number;
+  orderedQuantity: number;
+  quantity: number;
+  unit: string;
+  subtotal: number;
 }
 
 interface Order {
@@ -39,10 +51,11 @@ interface Order {
   recipientName: string;
   recipientPhone: string;
   totalAmount: number;
+  shippingFee?: number;
   status: string;
   createdAt: string;
   paymentMethod?: string;
-  items: { productName: string; quantity: number; subtotal: number }[];
+  items: OrderItem[];
   statusHistory?: StatusHistoryItem[];
 }
 
@@ -68,6 +81,8 @@ export default function OrdersPage() {
     COMPLETED: 0,
     CANCELLED: 0,
   });
+  const [weightDrafts, setWeightDrafts] = useState<Record<string, number>>({});
+  const [savingWeights, setSavingWeights] = useState(false);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -115,6 +130,16 @@ export default function OrdersPage() {
     fetchCounts();
   }, []);
 
+  const syncWeightDrafts = (order: Order) => {
+    const drafts: Record<string, number> = {};
+    for (const item of order.items || []) {
+      if (item.unit === 'KG') {
+        drafts[item.id] = item.quantity;
+      }
+    }
+    setWeightDrafts(drafts);
+  };
+
   const handleViewOrder = async (order: Order) => {
     setSelectedOrder(order);
     setModalOpen(true);
@@ -122,10 +147,46 @@ export default function OrdersPage() {
     try {
       const { data } = await api.get(`/orders/${order.id}`);
       setSelectedOrder(data);
+      syncWeightDrafts(data);
     } catch {
       message.error('Không thể tải chi tiết đơn hàng');
     } finally {
       setDetailLoading(false);
+    }
+  };
+
+  const canAdjustWeight =
+    selectedOrder?.status === OrderStatus.PENDING ||
+    selectedOrder?.status === OrderStatus.CONFIRMED;
+
+  const handleSaveWeights = async () => {
+    if (!selectedOrder) return;
+    const kgItems = selectedOrder.items.filter((item) => item.unit === 'KG');
+    if (!kgItems.length) {
+      message.warning('Đơn không có sản phẩm tính theo kg');
+      return;
+    }
+
+    const payload = kgItems.map((item) => ({
+      itemId: item.id,
+      quantity: weightDrafts[item.id] ?? item.quantity,
+    }));
+
+    setSavingWeights(true);
+    try {
+      const { data } = await api.patch(`/orders/${selectedOrder.id}/items`, {
+        items: payload,
+      });
+      setSelectedOrder(data);
+      syncWeightDrafts(data);
+      fetchOrders();
+      message.success('Đã cập nhật cân thực tế và tính lại tiền');
+    } catch (error: any) {
+      message.error(
+        error.response?.data?.message || 'Không thể lưu cân thực tế',
+      );
+    } finally {
+      setSavingWeights(false);
     }
   };
 
@@ -260,15 +321,16 @@ export default function OrdersPage() {
 
   const historyColumns = [
     {
-      title: 'Mã đơn',
-      key: 'orderCode',
-      render: () => selectedOrder?.orderCode || '-',
-    },
-    {
       title: 'Trạng thái',
       key: 'statusChange',
       render: (_: unknown, record: StatusHistoryItem) =>
         formatStatusChange(record.fromStatus, record.toStatus),
+    },
+    {
+      title: 'Ghi chú',
+      dataIndex: 'note',
+      key: 'note',
+      render: (note: string | null | undefined) => note || '-',
     },
     {
       title: 'Người đổi',
@@ -353,7 +415,10 @@ export default function OrdersPage() {
       <Modal
         title="Chi tiết đơn hàng"
         open={modalOpen}
-        onCancel={() => setModalOpen(false)}
+        onCancel={() => {
+          setModalOpen(false);
+          setWeightDrafts({});
+        }}
         footer={null}
         width={800}
       >
@@ -375,7 +440,17 @@ export default function OrdersPage() {
                 {selectedOrder.recipientPhone}
               </Descriptions.Item>
               <Descriptions.Item label="Tổng tiền" span={2}>
-                {selectedOrder.totalAmount.toLocaleString('vi-VN')}đ
+                <Space direction="vertical" size={0}>
+                  <Text strong>
+                    {selectedOrder.totalAmount.toLocaleString('vi-VN')}đ
+                  </Text>
+                  {typeof selectedOrder.shippingFee === 'number' && (
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      Phí ship:{' '}
+                      {selectedOrder.shippingFee.toLocaleString('vi-VN')}đ
+                    </Text>
+                  )}
+                </Space>
               </Descriptions.Item>
             </Descriptions>
 
@@ -383,14 +458,82 @@ export default function OrdersPage() {
               <List
                 size="small"
                 dataSource={selectedOrder.items}
-                renderItem={(item) => (
-                  <List.Item
-                    extra={`${item.subtotal.toLocaleString('vi-VN')}đ`}
-                  >
-                    {item.productName} x{item.quantity}
-                  </List.Item>
-                )}
+                renderItem={(item) => {
+                  const unitLabel = UNIT_LABELS[item.unit] || item.unit;
+                  const ordered =
+                    item.orderedQuantity > 0
+                      ? item.orderedQuantity
+                      : item.quantity;
+                  const draftQty = weightDrafts[item.id] ?? item.quantity;
+                  const previewSubtotal = Math.round(
+                    (item.unitPrice || 0) * draftQty,
+                  );
+
+                  if (item.unit === 'KG' && canAdjustWeight) {
+                    return (
+                      <List.Item
+                        extra={`${previewSubtotal.toLocaleString('vi-VN')}đ`}
+                      >
+                        <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                          <Text>
+                            {item.productName}{' '}
+                            <Text type="secondary">
+                              (đặt {ordered} {unitLabel})
+                            </Text>
+                          </Text>
+                          <Space>
+                            <Text type="secondary">Cân thực tế:</Text>
+                            <InputNumber
+                              min={Number((ordered * 0.9).toFixed(3))}
+                              max={Number((ordered * 1.1).toFixed(3))}
+                              step={0.01}
+                              value={draftQty}
+                              onChange={(value) =>
+                                setWeightDrafts((prev) => ({
+                                  ...prev,
+                                  [item.id]: Number(value) || 0,
+                                }))
+                              }
+                              addonAfter="kg"
+                              style={{ width: 160 }}
+                            />
+                            <Text type="secondary">
+                              {item.unitPrice.toLocaleString('vi-VN')}đ/{unitLabel}
+                            </Text>
+                          </Space>
+                        </Space>
+                      </List.Item>
+                    );
+                  }
+
+                  return (
+                    <List.Item
+                      extra={`${item.subtotal.toLocaleString('vi-VN')}đ`}
+                    >
+                      {item.productName} x{item.quantity} {unitLabel}
+                      {item.unit === 'KG' &&
+                        item.quantity !== ordered && (
+                          <Text type="secondary">
+                            {' '}
+                            (đặt {ordered} {unitLabel})
+                          </Text>
+                        )}
+                    </List.Item>
+                  );
+                }}
               />
+              {canAdjustWeight &&
+                selectedOrder.items.some((item) => item.unit === 'KG') && (
+                  <Button
+                    type="primary"
+                    icon={<SaveOutlined />}
+                    loading={savingWeights}
+                    onClick={handleSaveWeights}
+                    style={{ marginTop: 12 }}
+                  >
+                    Lưu cân thực tế
+                  </Button>
+                )}
             </Card>
 
             {getNextActions(selectedOrder.status as OrderStatus).length > 0 && (

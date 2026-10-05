@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { label: 'Rau củ', href: '/?categoryId=rau-cu' },
   { label: 'Trái cây', href: '/?categoryId=trai-cay' },
   { label: 'Đặc sản vùng miền', href: '/?categoryId=dac-san-vung-mien' },
+  { label: 'Tra cứu đơn', href: '/tracking' },
 ];
 
 export function StorefrontShell({ children }: Props) {

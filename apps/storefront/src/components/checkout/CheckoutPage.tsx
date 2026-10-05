@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/store/cart';
-import { createOrder } from '@/lib/api';
+import { useOrderHistoryStore } from '@/store/order-history';
+import { createOrder, validateOrder } from '@/lib/api';
 import { FormField, FormTextarea } from './FormField';
 import { ProvinceSelect } from './ProvinceSelect';
 import { TimeSlotPicker } from './TimeSlotPicker';
@@ -16,6 +17,7 @@ const SHIPPING_FEE = 30000;
 export function CheckoutPage() {
   const router = useRouter();
   const { items, total, clearCart } = useCartStore();
+  const addOrder = useOrderHistoryStore((s) => s.addOrder);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState({
@@ -33,7 +35,12 @@ export function CheckoutPage() {
     subtotal: 0,
     shippingFee: 0,
     total: 0,
+    discountAmount: 0,
   });
+  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
+  const [discountLabel, setDiscountLabel] = useState<string | null>(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState('');
 
   // Tính ngày mặc định: ngày mai + 1
   useEffect(() => {
@@ -43,18 +50,102 @@ export function CheckoutPage() {
     setForm((prev) => ({ ...prev, deliveryDate: defaultDate }));
   }, []);
 
-  // Cập nhật order summary khi items hoặc province thay đổi
-  useEffect(() => {
-    const subtotal = total();
+  const recomputeLocalSummary = (discountAmount = 0) => {
+    const subtotalBefore = total();
+    const subtotal = Math.max(0, subtotalBefore - discountAmount);
     const isFreeShip =
-      FREE_SHIP_PROVINCES.includes(form.shippingProvince) && subtotal >= FREE_SHIP_THRESHOLD;
+      FREE_SHIP_PROVINCES.includes(form.shippingProvince) &&
+      subtotal >= FREE_SHIP_THRESHOLD;
     const shippingFee = isFreeShip ? 0 : SHIPPING_FEE;
     setOrderSummary({
       subtotal,
       shippingFee,
       total: subtotal + shippingFee,
+      discountAmount,
     });
-  }, [items, form.shippingProvince, total]);
+  };
+
+  // Cập nhật order summary khi items hoặc province thay đổi
+  useEffect(() => {
+    if (!appliedCoupon) {
+      recomputeLocalSummary(0);
+      return;
+    }
+
+    const cartItems = items.map((i) => ({
+      productId: i.productId,
+      quantity: Math.max(1, Math.round(i.quantity)),
+    }));
+
+    validateOrder({
+      items: cartItems,
+      shippingProvince: form.shippingProvince || undefined,
+      couponCode: appliedCoupon,
+    })
+      .then((result) => {
+        setOrderSummary({
+          subtotal: result.subtotal,
+          shippingFee: result.shippingFee,
+          total: result.total,
+          discountAmount: result.discountAmount || 0,
+        });
+        if (result.discount) {
+          setDiscountLabel(
+            `Giảm ${result.discount.percentOff}% cho ${result.discount.productName}`,
+          );
+        }
+      })
+      .catch(() => {
+        setAppliedCoupon(null);
+        setDiscountLabel(null);
+        setCouponError('Mã giảm giá không còn hợp lệ với giỏ hàng hiện tại');
+        recomputeLocalSummary(0);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, form.shippingProvince, appliedCoupon, total]);
+
+  const handleApplyCoupon = async (code: string) => {
+    setCouponLoading(true);
+    setCouponError('');
+    try {
+      const result = await validateOrder({
+        items: items.map((i) => ({
+          productId: i.productId,
+          quantity: Math.max(1, Math.round(i.quantity)),
+        })),
+        shippingProvince: form.shippingProvince || undefined,
+        couponCode: code,
+      });
+      setAppliedCoupon(result.couponCode);
+      setOrderSummary({
+        subtotal: result.subtotal,
+        shippingFee: result.shippingFee,
+        total: result.total,
+        discountAmount: result.discountAmount || 0,
+      });
+      setDiscountLabel(
+        result.discount
+          ? `Giảm ${result.discount.percentOff}% cho ${result.discount.productName}`
+          : null,
+      );
+    } catch (err) {
+      setAppliedCoupon(null);
+      setDiscountLabel(null);
+      setCouponError(
+        err instanceof Error ? err.message : 'Không áp dụng được mã giảm giá',
+      );
+      recomputeLocalSummary(0);
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleClearCoupon = () => {
+    setAppliedCoupon(null);
+    setDiscountLabel(null);
+    setCouponError('');
+    recomputeLocalSummary(0);
+  };
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -97,6 +188,7 @@ export function CheckoutPage() {
     try {
       const result = await createOrder({
         ...form,
+        couponCode: appliedCoupon || undefined,
         idempotencyKey:
           typeof crypto !== 'undefined' && crypto.randomUUID
             ? crypto.randomUUID()
@@ -107,6 +199,10 @@ export function CheckoutPage() {
         })),
       });
 
+      addOrder({
+        orderCode: result.orderCode,
+        phone: form.recipientPhone,
+      });
       clearCart();
       router.push(
         `/thanh-toan/thanh-cong?orderCode=${encodeURIComponent(result.orderCode)}&phone=${encodeURIComponent(form.recipientPhone)}`,
@@ -283,6 +379,13 @@ export function CheckoutPage() {
           shippingFee={orderSummary.shippingFee}
           total={orderSummary.total}
           shippingProvince={form.shippingProvince}
+          discountAmount={orderSummary.discountAmount}
+          appliedCoupon={appliedCoupon}
+          discountLabel={discountLabel}
+          couponLoading={couponLoading}
+          couponError={couponError}
+          onApplyCoupon={handleApplyCoupon}
+          onClearCoupon={handleClearCoupon}
         />
       </div>
     </form>

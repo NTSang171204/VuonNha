@@ -54,19 +54,34 @@ model Category {
 }
 
 model Product {
-  id          String        @id @default(cuid())
-  categoryId  String
-  category    Category      @relation(fields: [categoryId], references: [id])
-  name        String
-  imageUrl    String?
-  description String?
-  price       Int           @default(0)
-  unit        Unit          @default(KG)
-  stock       Int           @default(0)
-  status      ProductStatus @default(ACTIVE)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  orderItems  OrderItem[]
+  id            String         @id @default(cuid())
+  categoryId    String
+  category      Category       @relation(fields: [categoryId], references: [id])
+  name          String
+  imageUrl      String?
+  description   String?
+  price         Int            @default(0)
+  unit          Unit           @default(KG)
+  stock         Int            @default(0)
+  status        ProductStatus  @default(ACTIVE)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  orderItems    OrderItem[]
+  discountCodes DiscountCode[]
+}
+
+model DiscountCode {
+  id          String    @id @default(cuid())
+  code        String    @unique
+  percentOff  Int
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id])
+  active      Boolean   @default(true)
+  expiresAt   DateTime?
+  maxUses     Int?
+  usedCount   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 model Order {
@@ -85,6 +100,8 @@ model Order {
   paymentMethod         String               @default("COD")
   paymentStatus         String               @default("UNPAID")
   shippingFee           Int                  @default(0)
+  couponCode            String?
+  discountAmount        Int                  @default(0)
   status                OrderStatus          @default(PENDING)
   totalAmount           Float
   createdAt             DateTime             @default(now())
@@ -94,15 +111,17 @@ model Order {
 }
 
 model OrderItem {
-  id          String  @id @default(cuid())
-  orderId     String
-  order       Order   @relation(fields: [orderId], references: [id])
-  productId   String
-  product     Product @relation(fields: [productId], references: [id])
-  productName String
-  unitPrice   Float
-  quantity    Int
-  subtotal    Float
+  id              String  @id @default(cuid())
+  orderId         String
+  order           Order   @relation(fields: [orderId], references: [id])
+  productId       String
+  product         Product @relation(fields: [productId], references: [id])
+  productName     String
+  unitPrice       Float
+  orderedQuantity Float   @default(0)
+  quantity        Float
+  unit            Unit    @default(KG)
+  subtotal        Float
 }
 
 model OrderStatusHistory {

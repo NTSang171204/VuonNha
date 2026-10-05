@@ -8,10 +8,14 @@ interface Props {
   shippingFee: number;
   total: number;
   shippingProvince: string;
+  discountAmount?: number;
+  appliedCoupon?: string | null;
+  discountLabel?: string | null;
+  couponLoading?: boolean;
+  couponError?: string;
+  onApplyCoupon: (code: string) => void;
+  onClearCoupon: () => void;
 }
-
-const FREE_SHIP_PROVINCES = ['TP.Hồ Chí Minh', 'TP.HCM', 'Hồ Chí Minh'];
-const FREE_SHIP_THRESHOLD = 300000;
 
 const UNIT_LABELS: Record<string, string> = {
   KG: 'kg',
@@ -20,12 +24,20 @@ const UNIT_LABELS: Record<string, string> = {
   BUNDLE: 'bó',
 };
 
-export function OrderSummary({ subtotal, shippingFee, total, shippingProvince }: Props) {
+export function OrderSummary({
+  subtotal,
+  shippingFee,
+  total,
+  discountAmount = 0,
+  appliedCoupon,
+  discountLabel,
+  couponLoading,
+  couponError,
+  onApplyCoupon,
+  onClearCoupon,
+}: Props) {
   const items = useCartStore((s) => s.items);
   const [couponCode, setCouponCode] = useState('');
-
-  const isFreeShip =
-    FREE_SHIP_PROVINCES.includes(shippingProvince) && subtotal >= FREE_SHIP_THRESHOLD;
 
   return (
     <div className="rounded-xl border border-line bg-white p-6">
@@ -73,27 +85,59 @@ export function OrderSummary({ subtotal, shippingFee, total, shippingProvince }:
         <input
           type="text"
           placeholder="Mã giảm giá"
-          value={couponCode}
+          value={appliedCoupon || couponCode}
+          disabled={!!appliedCoupon || couponLoading}
           onChange={(e) => setCouponCode(e.target.value)}
-          className="flex-1 rounded-lg border border-line bg-white px-4 py-2.5 text-sm text-ink outline-none focus:border-primary"
+          className="flex-1 rounded-lg border border-line bg-white px-4 py-2.5 text-sm text-ink outline-none focus:border-primary disabled:bg-surface"
         />
-        <button
-          type="button"
-          className="rounded-lg border border-line bg-white px-4 py-2.5 text-sm font-medium text-ink hover:bg-gray-50"
-        >
-          Áp dụng
-        </button>
+        {appliedCoupon ? (
+          <button
+            type="button"
+            onClick={() => {
+              setCouponCode('');
+              onClearCoupon();
+            }}
+            className="rounded-lg border border-line bg-white px-4 py-2.5 text-sm font-medium text-ink hover:bg-gray-50"
+          >
+            Gỡ
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled={couponLoading || !couponCode.trim()}
+            onClick={() => onApplyCoupon(couponCode.trim())}
+            className="rounded-lg border border-line bg-white px-4 py-2.5 text-sm font-medium text-ink hover:bg-gray-50 disabled:opacity-50"
+          >
+            {couponLoading ? '...' : 'Áp dụng'}
+          </button>
+        )}
       </div>
+      {couponError && (
+        <p className="mb-3 text-sm text-red-600">{couponError}</p>
+      )}
+      {appliedCoupon && discountLabel && (
+        <p className="mb-3 text-sm text-primary">{discountLabel}</p>
+      )}
 
       <div className="space-y-2 border-t border-line pt-4">
         <div className="flex justify-between text-sm">
           <span className="text-muted">Tạm tính</span>
-          <span className="text-ink">{subtotal.toLocaleString('vi-VN')}₫</span>
+          <span className="text-ink">
+            {(subtotal + discountAmount).toLocaleString('vi-VN')}₫
+          </span>
         </div>
+        {discountAmount > 0 && (
+          <div className="flex justify-between text-sm">
+            <span className="text-muted">Giảm giá ({appliedCoupon})</span>
+            <span className="text-primary">
+              -{discountAmount.toLocaleString('vi-VN')}₫
+            </span>
+          </div>
+        )}
         <div className="flex justify-between text-sm">
           <span className="text-muted">Phí giao hàng</span>
           <span className="text-ink">
-            {isFreeShip ? (
+            {shippingFee === 0 ? (
               <span className="text-primary">Miễn phí</span>
             ) : (
               `${shippingFee.toLocaleString('vi-VN')}₫`

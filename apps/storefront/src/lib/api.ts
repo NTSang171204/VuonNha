@@ -35,7 +35,10 @@ export interface Order {
   items: Array<{
     id: string;
     productName: string;
+    orderedQuantity?: number;
     quantity: number;
+    unit?: 'KG' | 'BUNDLE' | 'BOX' | 'FRUIT';
+    unitPrice?: number;
     subtotal: number;
   }>;
 }
@@ -112,14 +115,39 @@ export async function createOrder(data: unknown): Promise<Order> {
   return parseJson<Order>(res);
 }
 
-export async function validateOrder(
-  items: { productId: string; quantity: number }[],
-  shippingProvince?: string,
-) {
+export interface ValidateOrderResult {
+  valid: boolean;
+  items: Array<{
+    productId: string;
+    name: string;
+    originalUnitPrice?: number;
+    unitPrice: number;
+    quantity: number;
+    unit: string;
+    subtotal: number;
+  }>;
+  subtotalBeforeDiscount?: number;
+  discountAmount: number;
+  couponCode: string | null;
+  discount?: {
+    percentOff: number;
+    productId: string;
+    productName: string;
+  } | null;
+  subtotal: number;
+  shippingFee: number;
+  total: number;
+}
+
+export async function validateOrder(payload: {
+  items: { productId: string; quantity: number }[];
+  shippingProvince?: string;
+  couponCode?: string;
+}): Promise<ValidateOrderResult> {
   const res = await fetch(`${API_URL}/orders/validate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ items, shippingProvince }),
+    body: JSON.stringify(payload),
   });
-  return parseJson(res);
+  return parseJson<ValidateOrderResult>(res);
 }

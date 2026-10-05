@@ -30,6 +30,7 @@ import {
   LogoutOutlined,
   UserOutlined,
   SafetyCertificateOutlined,
+  PercentageOutlined,
 } from '@ant-design/icons';
 import api, {
   AdminUser,
@@ -43,6 +44,11 @@ const NAV = [
   { key: '/dashboard', label: 'Tổng quan', icon: <DashboardOutlined /> },
   { key: '/san-pham', label: 'Quản lý sản phẩm', icon: <InboxOutlined /> },
   { key: '/don-hang', label: 'Quản lý đơn hàng', icon: <ShoppingOutlined /> },
+  {
+    key: '/ma-giam-gia',
+    label: 'Mã giảm giá',
+    icon: <PercentageOutlined />,
+  },
   {
     key: '/khach-hang',
     label: (
@@ -74,6 +80,7 @@ const BREADCRUMB_LABEL: Record<string, string> = {
   '/dashboard': 'Tổng quan',
   '/san-pham': 'Quản lý sản phẩm',
   '/don-hang': 'Quản lý đơn hàng',
+  '/ma-giam-gia': 'Mã giảm giá',
   '/khach-hang': 'Khách hàng',
   '/danh-muc': 'Danh mục',
   '/cai-dat': 'Cài đặt',

@@ -3,6 +3,7 @@ import {
   ArrayMinSize,
   IsArray,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   Min,
@@ -17,6 +18,24 @@ export class CreateOrderItemDto {
   @IsInt()
   @Min(1)
   quantity!: number;
+}
+
+export class AdjustOrderItemDto {
+  @IsString()
+  itemId!: string;
+
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.01)
+  quantity!: number;
+}
+
+export class AdjustOrderItemsDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => AdjustOrderItemDto)
+  items!: AdjustOrderItemDto[];
 }
 
 export class CreateOrderDto {
@@ -56,6 +75,10 @@ export class CreateOrderDto {
   @IsString()
   paymentMethod?: string;
 
+  @IsOptional()
+  @IsString()
+  couponCode?: string;
+
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })
@@ -73,9 +96,14 @@ export class ValidateOrderDto {
   @IsOptional()
   @IsString()
   shippingProvince?: string;
+
+  @IsOptional()
+  @IsString()
+  couponCode?: string;
 }
 
 export class UpdateOrderStatusDto {
   @IsString()
   status!: string;
 }
+

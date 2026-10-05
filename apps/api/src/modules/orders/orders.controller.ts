@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Patch,
   Param,
   Body,
   Query,
@@ -15,6 +16,7 @@ import { Roles } from '../auth/roles.decorator';
 import { CurrentUser } from '../auth/current-user.decorator';
 import { Role, OrderStatus } from '@farm/types';
 import {
+  AdjustOrderItemsDto,
   CreateOrderDto,
   UpdateOrderStatusDto,
   ValidateOrderDto,
@@ -53,12 +55,27 @@ export class OrdersController {
 
   @Post('validate')
   validateOrder(@Body() body: ValidateOrderDto) {
-    return this.ordersService.validateOrder(body.items, body.shippingProvince);
+    return this.ordersService.validateOrder(
+      body.items,
+      body.shippingProvince,
+      body.couponCode,
+    );
   }
 
   @Post()
   create(@Body() dto: CreateOrderDto) {
     return this.ordersService.create(dto);
+  }
+
+  @Patch(':id/items')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  adjustItems(
+    @Param('id') id: string,
+    @Body() dto: AdjustOrderItemsDto,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.ordersService.adjustItems(id, dto.items, userId);
   }
 
   @Put(':id/status')

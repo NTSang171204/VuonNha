@@ -76,14 +76,42 @@ export interface CreateOrderDto {
   deliveryDate?: string;
   deliveryTimeSlot?: string;
   paymentMethod?: string;
+  couponCode?: string;
   items: {
     productId: string;
     quantity: number;
   }[];
 }
 
+export interface CreateDiscountCodeDto {
+  code: string;
+  percentOff: number;
+  productId: string;
+  active?: boolean;
+  expiresAt?: string | null;
+  maxUses?: number | null;
+}
+
+export interface UpdateDiscountCodeDto {
+  code?: string;
+  percentOff?: number;
+  productId?: string;
+  active?: boolean;
+  expiresAt?: string | null;
+  maxUses?: number | null;
+}
+
 export interface UpdateOrderStatusDto {
   status: OrderStatus;
+}
+
+export interface AdjustOrderItemDto {
+  itemId: string;
+  quantity: number;
+}
+
+export interface AdjustOrderItemsDto {
+  items: AdjustOrderItemDto[];
 }
 
 export interface CreateProductDto {

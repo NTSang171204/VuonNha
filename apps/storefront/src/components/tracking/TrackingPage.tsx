@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { trackOrder, Order } from '@/lib/api';
+import { useOrderHistoryStore } from '@/store/order-history';
 import { Package, Truck, CheckCircle, XCircle, Clock } from 'lucide-react';
 
 const statusConfig: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
@@ -15,41 +16,25 @@ const statusConfig: Record<string, { icon: React.ReactNode; color: string; label
 
 export function TrackingPage() {
   const searchParams = useSearchParams();
+  const recentOrders = useOrderHistoryStore((s) => s.orders);
   const [orderCode, setOrderCode] = useState('');
   const [phone, setPhone] = useState('');
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const code = searchParams.get('orderCode');
-    const phoneParam = searchParams.get('phone');
-    if (code) setOrderCode(code);
-    if (phoneParam) setPhone(phoneParam);
-    if (code && phoneParam) {
-      setLoading(true);
-      trackOrder(code, phoneParam)
-        .then((result) => {
-          if (result) setOrder(result);
-          else setError('Không tìm thấy đơn hàng. Vui lòng kiểm tra lại mã đơn và số điện thoại.');
-        })
-        .catch(() => setError('Có lỗi xảy ra. Vui lòng thử lại.'))
-        .finally(() => setLoading(false));
-    }
-  }, [searchParams]);
-
-  const handleTrack = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const runTrack = async (code: string, phoneValue: string) => {
     setLoading(true);
     setError('');
     setOrder(null);
-
     try {
-      const result = await trackOrder(orderCode.trim(), phone.trim());
+      const result = await trackOrder(code.trim(), phoneValue.trim());
       if (result) {
         setOrder(result);
       } else {
-        setError('Không tìm thấy đơn hàng. Vui lòng kiểm tra lại mã đơn và số điện thoại.');
+        setError(
+          'Không tìm thấy đơn hàng. Vui lòng kiểm tra lại mã đơn và số điện thoại.',
+        );
       }
     } catch {
       setError('Có lỗi xảy ra. Vui lòng thử lại.');
@@ -58,8 +43,47 @@ export function TrackingPage() {
     }
   };
 
+  useEffect(() => {
+    const code = searchParams.get('orderCode');
+    const phoneParam = searchParams.get('phone');
+    if (code) setOrderCode(code);
+    if (phoneParam) setPhone(phoneParam);
+    if (code && phoneParam) {
+      void runTrack(code, phoneParam);
+    }
+  }, [searchParams]);
+
+  const handleTrack = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await runTrack(orderCode, phone);
+  };
+
+  const handleRecentClick = (code: string, phoneValue: string) => {
+    setOrderCode(code);
+    setPhone(phoneValue);
+    void runTrack(code, phoneValue);
+  };
+
   return (
     <div>
+      {recentOrders.length > 0 && (
+        <div className="mb-6">
+          <h2 className="mb-2 text-sm font-medium text-ink">Đơn gần đây</h2>
+          <div className="flex flex-wrap gap-2">
+            {recentOrders.map((item) => (
+              <button
+                key={`${item.orderCode}-${item.phone}`}
+                type="button"
+                onClick={() => handleRecentClick(item.orderCode, item.phone)}
+                className="rounded-full border border-line bg-white px-3 py-1.5 text-sm text-ink transition-colors hover:border-primary hover:text-primary"
+              >
+                {item.orderCode}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <form onSubmit={handleTrack} className="mb-8 space-y-4">
         <div>
           <label className="mb-1 block text-sm font-medium">Mã đơn hàng</label>
@@ -120,12 +144,39 @@ export function TrackingPage() {
           <div>
             <h3 className="mb-2 font-medium">Sản phẩm</h3>
             <div className="space-y-2">
-              {order.items?.map((item) => (
-                <div key={item.id} className="flex justify-between text-sm">
-                  <span>{item.productName} x{item.quantity}</span>
-                  <span>{item.subtotal?.toLocaleString('vi-VN')}đ</span>
-                </div>
-              ))}
+              {order.items?.map((item) => {
+                const ordered = item.orderedQuantity ?? item.quantity;
+                const unit = item.unit || 'KG';
+                const unitLabel =
+                  unit === 'KG'
+                    ? 'kg'
+                    : unit === 'BUNDLE'
+                      ? 'bó'
+                      : unit === 'BOX'
+                        ? 'hộp'
+                        : 'trái';
+                const adjusted =
+                  unit === 'KG' && item.quantity !== ordered;
+
+                return (
+                  <div key={item.id} className="flex justify-between text-sm">
+                    <span>
+                      {item.productName}{' '}
+                      {adjusted ? (
+                        <>
+                          (đặt {ordered} {unitLabel} / thực tế {item.quantity}{' '}
+                          {unitLabel})
+                        </>
+                      ) : (
+                        <>
+                          x{item.quantity} {unitLabel}
+                        </>
+                      )}
+                    </span>
+                    <span>{item.subtotal?.toLocaleString('vi-VN')}đ</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
